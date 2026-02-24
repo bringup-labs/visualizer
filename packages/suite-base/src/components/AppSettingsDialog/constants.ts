@@ -30,7 +30,7 @@ export const APP_SETTINGS_ABOUT_ITEMS = new Map<
       links: [
         {
           title: "License terms",
-          url: "https://github.com/lichtblick-suite/lichtblick/blob/main/LICENSE",
+          url: "https://github.com/bringup-labs/visualizer/blob/main/LICENSE",
         },
       ],
     },

@@ -3,16 +3,16 @@
   "version": "1.23.1",
   "license": "MPL-2.0",
   "private": true,
-  "productName": "Lichtblick",
-  "description": "Core components of Lichtblick",
-  "productDescription": "Lichtblick Suite",
+  "productName": "Visualizer",
+  "description": "Core components of Visualizer",
+  "productDescription": "Visualizer Suite",
   "packageManager": "yarn@3.6.3",
   "repository": {
     "type": "git",
     "url": "https://github.com/lichtblick-suite/lichtblick.git"
   },
   "author": {
-    "name": "Lichtblick",
+    "name": "Bringup Labs",
     "email": "lichtblick@bmwgroup.com"
   },
   "homepage": "https://github.com/lichtblick-suite",

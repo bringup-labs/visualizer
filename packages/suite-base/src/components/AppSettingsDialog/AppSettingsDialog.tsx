@@ -34,7 +34,7 @@ import { AppSettingsTab } from "@lichtblick/suite-base/components/AppSettingsDia
 import CopyButton from "@lichtblick/suite-base/components/CopyButton";
 import { ExperimentalFeatureSettings } from "@lichtblick/suite-base/components/ExperimentalFeatureSettings";
 import ExtensionsSettings from "@lichtblick/suite-base/components/ExtensionsSettings";
-import LichtblickLogoText from "@lichtblick/suite-base/components/LichtblickLogoText";
+import BringupLogoText from "@lichtblick/suite-base/components/BringupLogoText";
 import Stack from "@lichtblick/suite-base/components/Stack";
 import { useAppContext } from "@lichtblick/suite-base/context/AppContext";
 import {
@@ -178,11 +178,11 @@ export function AppSettingsDialog(
           >
             <Stack gap={2} alignItems="flex-start">
               <header>
-                <LichtblickLogoText color="primary" className={classes.logo} />
+                <BringupLogoText color="primary" className={classes.logo} />
               </header>
               <Stack direction="row" alignItems="center" gap={1}>
                 <Typography variant="body2">
-                  Lichtblick version {LICHTBLICK_SUITE_VERSION}
+                  Visualizer version {LICHTBLICK_SUITE_VERSION}
                 </Typography>
                 <CopyButton
                   size="small"

@@ -15,7 +15,7 @@ const path = require("path");
 function makeElectronBuilderConfig(params) {
   return {
     electronVersion,
-    appId: "dev.lichtblick.suite",
+    appId: "dev.bringup.visualizer",
     npmRebuild: false,
     asar: true,
     directories: {
@@ -55,7 +55,7 @@ function makeElectronBuilderConfig(params) {
         },
         {
           ext: "foxe",
-          name: "Lichtblick Extension",
+          name: "Visualizer Extension",
           mimeType: "application/zip",
         },
       ],
@@ -81,7 +81,7 @@ function makeElectronBuilderConfig(params) {
         },
         {
           ext: "foxe",
-          name: "Lichtblick Extension",
+          name: "Visualizer Extension",
           mimeType: "application/zip",
         },
       ],
@@ -132,7 +132,7 @@ function makeElectronBuilderConfig(params) {
           {
             CFBundleTypeExtensions: ["foxe"],
             CFBundleTypeIconFile: "FoxeIcon",
-            CFBundleTypeName: "Lichtblick Extension File",
+            CFBundleTypeName: "Visualizer Extension File",
             CFBundleTypeRole: "Viewer",
             LSHandlerRank: "Owner",
             CFBundleTypeIconSystemGenerated: 1,
@@ -156,7 +156,7 @@ function makeElectronBuilderConfig(params) {
           },
           {
             UTTypeConformsTo: ["public.data", "public.archive", "public.zip-archive"],
-            UTTypeDescription: "Lichtblick Extension File",
+            UTTypeDescription: "Visualizer Extension File",
             UTTypeIcons: { UTTypeIconText: "foxe" },
             UTTypeIdentifier: "dev.foxglove.extension",
             UTTypeTagSpecification: { "public.filename-extension": "foxe" },
@@ -176,12 +176,12 @@ function makeElectronBuilderConfig(params) {
       },
     },
     appx: {
-      applicationId: "LichtblickSuite",
+      applicationId: "VisualizerSuite",
       backgroundColor: "#f7def6",
-      displayName: "Lichtblick",
-      identityName: "Lichtblick.Suite",
-      publisher: "CN=Lichtblick, O=Lichtblick, L=San Francisco, S=California, C=US",
-      publisherDisplayName: "Lichtblick",
+      displayName: "Visualizer",
+      identityName: "Visualizer.Suite",
+      publisher: "CN=Bringup Labs, O=Bringup Labs, L=San Francisco, S=California, C=US",
+      publisherDisplayName: "Bringup Labs",
       languages: ["en-US"],
       addAutoLaunchExtension: false,
       showNameOnTiles: false,
