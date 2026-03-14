@@ -4,5 +4,8 @@
 declare namespace NodeJS {
   interface ProcessEnv {
     readonly DEV_WORKSPACE?: string;
+    readonly BAGMASTER_KEYCLOAK_URL?: string;
+    readonly BAGMASTER_KEYCLOAK_REALM?: string;
+    readonly BAGMASTER_KEYCLOAK_CLIENT_ID?: string;
   }
 }

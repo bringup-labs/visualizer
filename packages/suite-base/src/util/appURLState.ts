@@ -78,6 +78,10 @@ export function updateAppURLState(url: URL, urlState: AppURLState): URL {
  */
 export function parseAppURLState(url: URL): AppURLState | undefined {
   const ds = url.searchParams.get("ds") ?? undefined;
+  const layoutId =
+    (url.searchParams.get("bm.layoutId") ?? url.searchParams.get("layoutId") ?? undefined) as
+      | LayoutID
+      | undefined;
   const timeString = url.searchParams.get("time");
   const time = parseTimeUrlString(timeString ?? undefined);
   const dsParams: Record<string, string> = {};
@@ -98,6 +102,7 @@ export function parseAppURLState(url: URL): AppURLState | undefined {
     {
       time,
       ds,
+      layoutId,
       dsParams: _.isEmpty(dsParams) ? undefined : dsParams,
     },
     _.isEmpty,

@@ -13,3 +13,9 @@ declare const API_URL: string | undefined;
 declare const LICHTBLICK_SUITE_VERSION: string | undefined;
 
 declare const DEV_WORKSPACE: string | undefined;
+
+declare const BAGMASTER_KEYCLOAK_URL: string | undefined;
+
+declare const BAGMASTER_KEYCLOAK_REALM: string | undefined;
+
+declare const BAGMASTER_KEYCLOAK_CLIENT_ID: string | undefined;

@@ -10,6 +10,9 @@
 declare const API_URL: string | undefined;
 declare const LICHTBLICK_SUITE_VERSION: string | undefined;
 declare const DEV_WORKSPACE: string | undefined;
+declare const BAGMASTER_KEYCLOAK_URL: string | undefined;
+declare const BAGMASTER_KEYCLOAK_REALM: string | undefined;
+declare const BAGMASTER_KEYCLOAK_CLIENT_ID: string | undefined;
 
 export const APP_CONFIG = {
   /**
@@ -26,4 +29,11 @@ export const APP_CONFIG = {
    * Development workspace prefix (for local storage keys)
    */
   devWorkspace: DEV_WORKSPACE ?? "",
+
+  /**
+   * Bagmaster Keycloak OIDC settings for the web visualizer.
+   */
+  bagmasterKeycloakUrl: BAGMASTER_KEYCLOAK_URL ?? "https://login.homelab.rahulkatiyar.com",
+  bagmasterKeycloakRealm: BAGMASTER_KEYCLOAK_REALM ?? "bagmaster",
+  bagmasterKeycloakClientId: BAGMASTER_KEYCLOAK_CLIENT_ID ?? "bagmaster-client",
 } as const;

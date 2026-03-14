@@ -12,6 +12,7 @@ import Logger from "@lichtblick/log";
 import type { IDataSourceFactory } from "@lichtblick/suite-base";
 import CssBaseline from "@lichtblick/suite-base/components/CssBaseline";
 
+import BagmasterBridgeProvider from "./bagmaster/BagmasterBridgeProvider";
 import { CompatibilityBanner } from "./CompatibilityBanner";
 import { canRenderApp } from "./canRenderApp";
 
@@ -79,8 +80,12 @@ export async function main(getParams: () => Promise<MainParams> = async () => ({
 
   const { WebRoot } = await import("./WebRoot");
   const params = await getParams();
+  const extraProviders = [
+    <BagmasterBridgeProvider key="bagmaster-bridge" />,
+    ...(params.extraProviders ?? []),
+  ];
   const rootElement = params.rootElement ?? (
-    <WebRoot extraProviders={params.extraProviders} dataSources={params.dataSources}>
+    <WebRoot extraProviders={extraProviders} dataSources={params.dataSources}>
       <StudioApp />
     </WebRoot>
   );

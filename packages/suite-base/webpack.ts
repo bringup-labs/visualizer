@@ -35,6 +35,11 @@ type Options = {
 function buildEnvVars(): Record<string, string | undefined> {
   return {
     "process.env.DEV_WORKSPACE": JSON.stringify(process.env.DEV_WORKSPACE),
+    "process.env.BAGMASTER_KEYCLOAK_URL": JSON.stringify(process.env.BAGMASTER_KEYCLOAK_URL),
+    "process.env.BAGMASTER_KEYCLOAK_REALM": JSON.stringify(process.env.BAGMASTER_KEYCLOAK_REALM),
+    "process.env.BAGMASTER_KEYCLOAK_CLIENT_ID": JSON.stringify(
+      process.env.BAGMASTER_KEYCLOAK_CLIENT_ID,
+    ),
   };
 }
 
@@ -246,6 +251,9 @@ export function makeConfig(
         LICHTBLICK_SUITE_VERSION: JSON.stringify(version),
         API_URL: JSON.stringify(process.env.API_URL),
         DEV_WORKSPACE: JSON.stringify(process.env.DEV_WORKSPACE),
+        BAGMASTER_KEYCLOAK_URL: JSON.stringify(process.env.BAGMASTER_KEYCLOAK_URL),
+        BAGMASTER_KEYCLOAK_REALM: JSON.stringify(process.env.BAGMASTER_KEYCLOAK_REALM),
+        BAGMASTER_KEYCLOAK_CLIENT_ID: JSON.stringify(process.env.BAGMASTER_KEYCLOAK_CLIENT_ID),
         ...buildEnvVars(),
       }),
       // https://webpack.js.org/plugins/ignore-plugin/#example-of-ignoring-moment-locales
