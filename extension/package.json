@@ -1,0 +1,12 @@
+{
+  "name": "extension",
+  "private": true,
+  "devDependencies": {
+    "@lichtblick/log": "workspace:*",
+    "@lichtblick/suite-base": "workspace:*",
+    "@lichtblick/suite-web": "workspace:*",
+    "@lichtblick/tsconfig": "1.0.2",
+    "webpack": "5.105.3",
+    "webpack-dev-server": "5.2.3"
+  }
+}

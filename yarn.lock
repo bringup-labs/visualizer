@@ -11560,6 +11560,19 @@ __metadata:
   languageName: node
   linkType: hard
 
+"extension@workspace:extension":
+  version: 0.0.0-use.local
+  resolution: "extension@workspace:extension"
+  dependencies:
+    "@lichtblick/log": "workspace:*"
+    "@lichtblick/suite-base": "workspace:*"
+    "@lichtblick/suite-web": "workspace:*"
+    "@lichtblick/tsconfig": 1.0.2
+    webpack: 5.105.3
+    webpack-dev-server: 5.2.3
+  languageName: unknown
+  linkType: soft
+
 "extract-zip@npm:^2.0.1":
   version: 2.0.1
   resolution: "extract-zip@npm:2.0.1"
