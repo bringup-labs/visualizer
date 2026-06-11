@@ -136,6 +136,36 @@ describe("OpenFileChunkAssembler", () => {
     expect(assembler.add({ nope: true })).toBeUndefined();
     expect(console.warn).toHaveBeenCalledTimes(1);
   });
+
+  it("evicts abandoned partial transfers after 60s and allows the name to restart clean", async () => {
+    jest.useFakeTimers();
+    try {
+      const assembler = new OpenFileChunkAssembler();
+
+      // Start stream A (2 chunks) — do NOT finish it.
+      expect(assembler.add(chunk("a.mcap", 0, 2, "a0"))).toBeUndefined();
+
+      // Advance time past the 60 s eviction threshold.
+      jest.advanceTimersByTime(61_000);
+
+      // Any new add() triggers the eviction sweep.  Use a single-chunk stream B so it
+      // completes immediately and we can verify it is unaffected.
+      const fileB = assembler.add(chunk("b.bag", 0, 1, "b0"));
+      expect(fileB).toBeInstanceOf(File);
+      expect(console.warn).toHaveBeenCalledWith(
+        expect.stringContaining('evicting abandoned partial transfer of "a.mcap"'),
+      );
+
+      // The stale A entry is gone: sending the missing chunk 1 with the old totalChunks=2
+      // creates a fresh entry (chunk 0 is still missing → returns undefined).
+      expect(assembler.add(chunk("a.mcap", 1, 2, "a1"))).toBeUndefined();
+
+      // A fresh single-chunk stream for A now completes immediately.
+      expect(assembler.add(chunk("a.mcap", 0, 1, "fresh"))).toBeInstanceOf(File);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
 });
 
 describe("injectFileIntoApp", () => {

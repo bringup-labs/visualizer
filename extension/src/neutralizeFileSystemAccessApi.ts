@@ -55,7 +55,8 @@ export function neutralizeFileSystemAccessApi(): void {
         { once: true },
       );
 
-      // Chromium fires "cancel" on file inputs when the user dismisses the picker.
+      // The "cancel" event on file inputs is Chromium 113+. On other engines the promise would
+      // stay pending indefinitely — acceptable because this target is Electron/Chromium-only.
       input.addEventListener(
         "cancel",
         () => {
@@ -69,6 +70,10 @@ export function neutralizeFileSystemAccessApi(): void {
       input.click();
     });
   };
+
+  // This polyfill also replaces the picker in plain-browser dev mode (yarn extension:serve)
+  // intentionally: it ensures the open-file flow is consistent regardless of whether the
+  // native picker is available, so developers get the same code path as the embedded panel.
 
   // Cast: the WICG typings declare an overload returning a one-element tuple for
   // `multiple: false`; our single signature is call-compatible with both overloads.

@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Copyright (C) 2023-2026 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)<lichtblick@bmwgroup.com>
 // SPDX-License-Identifier: MPL-2.0
 
-import { fromBase64 } from "./bridge/BridgeExtensionLoader";
+import { fromBase64 } from "./bridge/base64";
 
 /** Bridge event name the ext_visualizer host uses to stream "open with" files. */
 export const OPEN_FILE_CHUNK_EVENT = "open-file-chunk";
@@ -36,10 +36,15 @@ export function parseOpenFileChunk(payload: unknown): OpenFileChunk | undefined 
   return { name, chunkIndex, totalChunks, dataB64 };
 }
 
+/** How long a partial transfer may sit without a new chunk before it is evicted. */
+const TRANSFER_TIMEOUT_MS = 60_000;
+
 type InProgressFile = {
   totalChunks: number;
   chunks: (string | undefined)[];
   received: number;
+  /** Timestamp (Date.now()) of the most recent chunk received for this transfer. */
+  lastChunkAt: number;
 };
 
 /**
@@ -61,6 +66,18 @@ export class OpenFileChunkAssembler {
       return undefined;
     }
     const { name, chunkIndex, totalChunks, dataB64 } = chunk;
+
+    // Evict any in-progress transfers that have not received a chunk within TRANSFER_TIMEOUT_MS.
+    const now = Date.now();
+    for (const [entryName, entry] of this.#inProgress) {
+      if (now - entry.lastChunkAt >= TRANSFER_TIMEOUT_MS) {
+        console.warn(
+          `[open-file] evicting abandoned partial transfer of "${entryName}" ` +
+            `(no chunk received for ≥${TRANSFER_TIMEOUT_MS / 1000}s)`,
+        );
+        this.#inProgress.delete(entryName);
+      }
+    }
 
     let entry = this.#inProgress.get(name);
     if (entry && entry.totalChunks !== totalChunks) {
@@ -85,6 +102,7 @@ export class OpenFileChunkAssembler {
         totalChunks,
         chunks: new Array<string | undefined>(totalChunks).fill(undefined),
         received: 0,
+        lastChunkAt: now,
       };
       this.#inProgress.set(name, entry);
     }
@@ -93,6 +111,7 @@ export class OpenFileChunkAssembler {
       entry.received += 1;
     }
     entry.chunks[chunkIndex] = dataB64;
+    entry.lastChunkAt = now;
 
     if (entry.received < entry.totalChunks) {
       return undefined;

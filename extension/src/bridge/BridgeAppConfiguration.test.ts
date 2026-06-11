@@ -4,7 +4,7 @@
 import { BridgeAppConfiguration } from "./BridgeAppConfiguration";
 import { BridgeClient } from "./BridgeClient";
 
-type ClientStub = Pick<BridgeClient, "request" | "onEvent">;
+type ClientStub = Pick<BridgeClient, "request">;
 
 function makeClientStub(): { calls: Array<{ method: string; req: unknown }>; client: ClientStub } {
   const calls: Array<{ method: string; req: unknown }> = [];
@@ -13,7 +13,6 @@ function makeClientStub(): { calls: Array<{ method: string; req: unknown }>; cli
       calls.push({ method, req });
       return {} as T;
     },
-    onEvent: () => () => {},
   };
   return { calls, client };
 }

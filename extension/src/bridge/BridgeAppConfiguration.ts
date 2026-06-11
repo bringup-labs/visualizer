@@ -18,10 +18,10 @@ import { VIS_BRIDGE } from "./types";
 export class BridgeAppConfiguration implements IAppConfiguration {
   #values: Map<string, AppConfigurationValue>;
   #listeners: Map<string, Set<ChangeHandler>>;
-  #client: Pick<BridgeClient, "request" | "onEvent">;
+  #client: Pick<BridgeClient, "request">;
 
   public constructor(
-    client: Pick<BridgeClient, "request" | "onEvent">,
+    client: Pick<BridgeClient, "request">,
     initialValues: Record<string, AppConfigurationValue>,
   ) {
     this.#client = client;

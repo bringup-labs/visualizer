@@ -1,10 +1,6 @@
 // SPDX-FileCopyrightText: Copyright (C) 2023-2026 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)<lichtblick@bmwgroup.com>
 // SPDX-License-Identifier: MPL-2.0
 
-// This Source Code Form is subject to the terms of the Mozilla Public
-// License, v2.0. If a copy of the MPL was not distributed with this
-// file, You can obtain one at http://mozilla.org/MPL/2.0/
-
 import { AppSetting } from "@lichtblick/suite-base";
 import { main } from "@lichtblick/suite-web";
 
@@ -18,14 +14,20 @@ async function start(): Promise<void> {
   neutralizeFileSystemAccessApi();
 
   const bridge = createBridge();
-  const initialConfig = await bridge.request<Record<string, string | number | boolean | undefined>>(
-    VIS_BRIDGE.configGetAll,
-    {},
-  );
-  const theme = await bridge.request<{ kind: "dark" | "light" }>(VIS_BRIDGE.themeGet, {});
+
+  // Fetch the persisted config and the current theme in parallel.
+  const [initialConfig, theme] = await Promise.all([
+    bridge.request<Record<string, string | number | boolean | undefined>>(
+      VIS_BRIDGE.configGetAll,
+      {},
+    ),
+    bridge.request<{ kind: "dark" | "light" }>(VIS_BRIDGE.themeGet, {}),
+  ]);
+
+  // The desktop app's theme is authoritative for the embedded panel (theme-sync design).
   const appConfiguration = new BridgeAppConfiguration(bridge, {
-    [AppSetting.COLOR_SCHEME]: theme.kind,
     ...initialConfig,
+    [AppSetting.COLOR_SCHEME]: theme.kind,
   });
 
   await main(async () => ({
@@ -33,4 +35,14 @@ async function start(): Promise<void> {
   }));
 }
 
-void start();
+start().catch((err: unknown) => {
+  console.error("[extension] startup failed", err);
+  const root = document.getElementById("root");
+  if (root) {
+    root.innerHTML = `
+      <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;color:#ccc;background:#1a1a1a;gap:12px;padding:24px;box-sizing:border-box;text-align:center;">
+        <div style="font-size:16px;">Visualizer couldn't reach its host process. Close and reopen the panel.</div>
+        <div style="font-size:12px;opacity:0.6;">${err instanceof Error ? err.message : String(err)}</div>
+      </div>`;
+  }
+});

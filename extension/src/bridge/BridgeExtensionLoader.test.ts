@@ -5,7 +5,8 @@ import JSZip from "jszip";
 
 import { ExtensionInfo } from "@lichtblick/suite-base/types/Extensions";
 
-import { BridgeExtensionLoader, fromBase64, toBase64 } from "./BridgeExtensionLoader";
+import { BridgeExtensionLoader } from "./BridgeExtensionLoader";
+import { fromBase64, toBase64 } from "./base64";
 
 function makeClientStub(responses: Record<string, unknown>) {
   const calls: Array<{ method: string; req: unknown }> = [];
