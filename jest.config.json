@@ -3,6 +3,7 @@
   "projects": [
     "<rootDir>/ci/jest.config.json",
     "<rootDir>/desktop/jest.config.json",
+    "<rootDir>/extension/jest.config.json",
     "<rootDir>/packages/*/jest.config.json"
   ],
   "coverageDirectory": "coverage"
