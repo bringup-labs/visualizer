@@ -5,7 +5,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { Fragment, Suspense, useEffect, useMemo } from "react";
+import { Fragment, Suspense, useContext, useEffect, useMemo } from "react";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 
@@ -95,7 +95,13 @@ export function StudioApp(): React.JSX.Element {
   providers.unshift(<UserProfileLocalStorageProvider />);
   providers.unshift(<LayoutManagerProvider />);
 
-  const layoutStorage = useMemo(() => new IdbLayoutStorage(), []);
+  // Allow an outer LayoutStorageContext provider (e.g. an embedded host) to supply layout
+  // storage; fall back to IndexedDB when none is provided (web/desktop behavior unchanged).
+  const layoutStorageOverride = useContext(LayoutStorageContext);
+  const layoutStorage = useMemo(
+    () => layoutStorageOverride ?? new IdbLayoutStorage(),
+    [layoutStorageOverride],
+  );
 
   providers.unshift(<LayoutStorageContext.Provider value={layoutStorage} />);
   const MaybeLaunchPreference = enableLaunchPreferenceScreen === true ? LaunchPreference : Fragment;
