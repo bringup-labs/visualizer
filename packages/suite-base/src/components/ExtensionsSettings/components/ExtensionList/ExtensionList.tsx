@@ -27,6 +27,7 @@ import { useExtensionCatalog } from "@lichtblick/suite-base/context/ExtensionCat
 import { ExtensionMarketplaceDetail } from "@lichtblick/suite-base/context/ExtensionMarketplaceContext";
 import { AppEvent } from "@lichtblick/suite-base/services/IAnalytics";
 import { canInstallExtension } from "@lichtblick/suite-base/util/canInstallExtension";
+import isBringupEmbedded from "@lichtblick/suite-base/util/isBringupEmbedded";
 import isDesktopApp from "@lichtblick/suite-base/util/isDesktopApp";
 
 export default function ExtensionList({
@@ -186,7 +187,10 @@ export default function ExtensionList({
               pagination: { paginationModel },
               columns: {
                 columnVisibilityModel: {
-                  actions: isDesktopApp() || !entries.some((entry) => canInstallExtension(entry)),
+                  actions:
+                    isDesktopApp() ||
+                    isBringupEmbedded() ||
+                    !entries.some((entry) => canInstallExtension(entry)),
                 },
               },
             }}
