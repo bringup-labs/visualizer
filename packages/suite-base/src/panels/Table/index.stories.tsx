@@ -15,13 +15,16 @@ import PanelSetup, { Fixture } from "@lichtblick/suite-base/stories/PanelSetup";
 const makeArrayData = ({
   length = 50,
   nestArray = true,
-}: { length?: number; nestArray?: boolean } = {}): unknown => {
+}: {
+  length?: number;
+  nestArray?: boolean;
+} = {}): unknown => {
   return new Array(length).fill(0).map((_, i) => {
     return {
       val: i,
       bool: true,
       str: `${i}-abcd-edfg`,
-      n: null, // eslint-disable-line no-restricted-syntax
+      n: null,
       u: undefined,
       obj: {
         date: new Date(`2020-01-${i}`),

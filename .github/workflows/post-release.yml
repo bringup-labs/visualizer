@@ -6,6 +6,9 @@ on:
   release:
     types: [released]
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 permissions:
   id-token: write
   contents: read
@@ -17,7 +20,7 @@ jobs:
 
     steps:
       - name: Checkout ${{ github.event.release.tag_name }}
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           ref: ${{ github.event.release.tag_name }}
 
@@ -42,7 +45,7 @@ jobs:
 
     steps:
       - name: Checkout ${{ github.event.release.tag_name }}
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           ref: ${{ github.event.release.tag_name }}
 

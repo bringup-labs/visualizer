@@ -13,6 +13,7 @@ import { render } from "@testing-library/react";
 import { act } from "react";
 
 import { Condvar, signal } from "@lichtblick/den/async";
+import type { MessageDefinition } from "@lichtblick/message-definition";
 import { Time } from "@lichtblick/rostime";
 import {
   PanelExtensionContext,
@@ -20,7 +21,6 @@ import {
   MessageEvent,
   Immutable,
   Subscription,
-  SettingsTreeAction,
 } from "@lichtblick/suite";
 import MockPanelContextProvider from "@lichtblick/suite-base/components/MockPanelContextProvider";
 import { PLAYER_CAPABILITIES } from "@lichtblick/suite-base/players/constants";
@@ -550,6 +550,204 @@ describe("PanelExtensionAdapter", () => {
     await sig;
   });
 
+  it("should apply sampling when converter supports latest-per-render-tick", async () => {
+    const sig = signal();
+    const initPanel = (context: PanelExtensionContext) => {
+      context.subscribe([
+        { topic: "/test", convertTo: "dst", sampling: { mode: "latest-per-render-tick" } },
+      ]);
+    };
+
+    render(
+      <ThemeProvider isDark>
+        <MockPanelContextProvider>
+          <PanelSetup
+            fixture={{
+              topics: [{ name: "/test", schemaName: "src" }],
+              messageConverters: [
+                {
+                  fromSchemaName: "src",
+                  toSchemaName: "dst",
+                  supportsLatestPerRenderTick: true,
+                  converter: () => ({}),
+                },
+              ],
+              setSubscriptions: (_, payload) => {
+                if (payload.length === 0) {
+                  return;
+                }
+                expect(payload).toEqual([
+                  {
+                    topic: "/test",
+                    preloadType: "partial",
+                    samplingRequest: { mode: "latest-per-render-tick" },
+                    samplingAuthorized: true,
+                  },
+                ]);
+                sig.resolve();
+              },
+            }}
+          >
+            <PanelExtensionAdapter config={{}} saveConfig={() => {}} initPanel={initPanel} />
+          </PanelSetup>
+        </MockPanelContextProvider>
+      </ThemeProvider>,
+    );
+
+    await act(async () => undefined);
+    await sig;
+  });
+
+  it("should disable sampling for native subscriptions by default", async () => {
+    const sig = signal();
+    const initPanel = (context: PanelExtensionContext) => {
+      context.subscribe([{ topic: "/test", sampling: { mode: "latest-per-render-tick" } }]);
+    };
+
+    render(
+      <ThemeProvider isDark>
+        <MockPanelContextProvider>
+          <PanelSetup
+            fixture={{
+              topics: [{ name: "/test", schemaName: "src" }],
+              setSubscriptions: (_, payload) => {
+                if (payload.length === 0) {
+                  return;
+                }
+                expect(payload).toEqual([{ topic: "/test", preloadType: "partial" }]);
+                sig.resolve();
+              },
+            }}
+          >
+            <PanelExtensionAdapter config={{}} saveConfig={() => {}} initPanel={initPanel} />
+          </PanelSetup>
+        </MockPanelContextProvider>
+      </ThemeProvider>,
+    );
+
+    await act(async () => undefined);
+    await sig;
+  });
+
+  it("should disable sampling when convertTo resolves to the native topic schema", async () => {
+    const sig = signal();
+    const initPanel = (context: PanelExtensionContext) => {
+      context.subscribe([
+        { topic: "/test", convertTo: "src", sampling: { mode: "latest-per-render-tick" } },
+      ]);
+    };
+
+    render(
+      <ThemeProvider isDark>
+        <MockPanelContextProvider>
+          <PanelSetup
+            fixture={{
+              topics: [{ name: "/test", schemaName: "src" }],
+              setSubscriptions: (_, payload) => {
+                if (payload.length === 0) {
+                  return;
+                }
+                expect(payload).toEqual([{ topic: "/test", preloadType: "partial" }]);
+                sig.resolve();
+              },
+            }}
+          >
+            <PanelExtensionAdapter config={{}} saveConfig={() => {}} initPanel={initPanel} />
+          </PanelSetup>
+        </MockPanelContextProvider>
+      </ThemeProvider>,
+    );
+
+    await act(async () => undefined);
+    await sig;
+  });
+
+  it("should disable sampling when converter does not support latest-per-render-tick", async () => {
+    const sig = signal();
+    const initPanel = (context: PanelExtensionContext) => {
+      context.subscribe([
+        { topic: "/test", convertTo: "dst", sampling: { mode: "latest-per-render-tick" } },
+      ]);
+    };
+
+    render(
+      <ThemeProvider isDark>
+        <MockPanelContextProvider>
+          <PanelSetup
+            fixture={{
+              topics: [{ name: "/test", schemaName: "src" }],
+              messageConverters: [
+                {
+                  fromSchemaName: "src",
+                  toSchemaName: "dst",
+                  converter: () => ({}),
+                },
+              ],
+              setSubscriptions: (_, payload) => {
+                if (payload.length === 0) {
+                  return;
+                }
+                expect(payload).toEqual([{ topic: "/test", preloadType: "partial" }]);
+                sig.resolve();
+              },
+            }}
+          >
+            <PanelExtensionAdapter config={{}} saveConfig={() => {}} initPanel={initPanel} />
+          </PanelSetup>
+        </MockPanelContextProvider>
+      </ThemeProvider>,
+    );
+
+    await act(async () => undefined);
+    await sig;
+  });
+
+  it("should disable sampling when preload is true even if converter supports it", async () => {
+    const sig = signal();
+    const initPanel = (context: PanelExtensionContext) => {
+      context.subscribe([
+        {
+          topic: "/test",
+          convertTo: "dst",
+          preload: true,
+          sampling: { mode: "latest-per-render-tick" },
+        },
+      ]);
+    };
+
+    render(
+      <ThemeProvider isDark>
+        <MockPanelContextProvider>
+          <PanelSetup
+            fixture={{
+              topics: [{ name: "/test", schemaName: "src" }],
+              messageConverters: [
+                {
+                  fromSchemaName: "src",
+                  toSchemaName: "dst",
+                  supportsLatestPerRenderTick: true,
+                  converter: () => ({}),
+                },
+              ],
+              setSubscriptions: (_, payload) => {
+                if (payload.length === 0) {
+                  return;
+                }
+                expect(payload).toEqual([{ topic: "/test", preloadType: "full" }]);
+                sig.resolve();
+              },
+            }}
+          >
+            <PanelExtensionAdapter config={{}} saveConfig={() => {}} initPanel={initPanel} />
+          </PanelSetup>
+        </MockPanelContextProvider>
+      </ThemeProvider>,
+    );
+
+    await act(async () => undefined);
+    await sig;
+  });
+
   it("should get and set variables", async () => {
     const mockRAF = jest
       .spyOn(window, "requestAnimationFrame")
@@ -878,10 +1076,334 @@ describe("PanelExtensionAdapter", () => {
       wrappedActionHandler?.({
         action: "reorder-node",
         payload: { path: ["topics", "topic1"] },
-      } as unknown as SettingsTreeAction);
+      });
 
       expect(settingsActionHandler).toHaveBeenCalledTimes(1);
       expect(saveConfig).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("getTopicSchema", () => {
+    it("returns the schema definition for a known topic", async () => {
+      // GIVEN a panel with a topic whose schema is registered in the datatypes
+      const sig = signal<Immutable<MessageDefinition> | undefined>();
+
+      // WHEN the panel requests the schema for that topic
+      const initPanel = (context: PanelExtensionContext) => {
+        const schema = context.getTopicSchema("/some/topic");
+        sig.resolve(schema);
+      };
+
+      render(
+        <ThemeProvider isDark>
+          <MockPanelContextProvider>
+            <PanelSetup
+              fixture={{
+                topics: [{ name: "/some/topic", schemaName: "some_msgs/Data" }],
+                datatypes: new Map([
+                  [
+                    "some_msgs/Data",
+                    {
+                      name: "some_msgs/Data",
+                      definitions: [
+                        { name: "value", type: "uint32", isArray: false, isComplex: false },
+                      ],
+                    },
+                  ],
+                ]),
+                frame: {},
+              }}
+            >
+              <PanelExtensionAdapter config={{}} saveConfig={() => {}} initPanel={initPanel} />
+            </PanelSetup>
+          </MockPanelContextProvider>
+        </ThemeProvider>,
+      );
+
+      await act(async () => undefined);
+      const schema = await sig;
+
+      // THEN the matching message definition is returned
+      expect(schema).toEqual({
+        name: "some_msgs/Data",
+        definitions: [{ name: "value", type: "uint32", isArray: false, isComplex: false }],
+      });
+    });
+
+    it("returns undefined for an unknown topic", async () => {
+      // GIVEN a panel whose fixture does not contain the requested topic
+      const sig = signal<Immutable<MessageDefinition> | undefined>();
+
+      // WHEN the panel requests the schema for a nonexistent topic
+      const initPanel = (context: PanelExtensionContext) => {
+        const schema = context.getTopicSchema("/nonexistent/topic");
+        sig.resolve(schema);
+      };
+
+      render(
+        <ThemeProvider isDark>
+          <MockPanelContextProvider>
+            <PanelSetup
+              fixture={{
+                topics: [{ name: "/some/topic", schemaName: "some_msgs/Data" }],
+                datatypes: new Map([
+                  [
+                    "some_msgs/Data",
+                    {
+                      name: "some_msgs/Data",
+                      definitions: [
+                        { name: "value", type: "uint32", isArray: false, isComplex: false },
+                      ],
+                    },
+                  ],
+                ]),
+                frame: {},
+              }}
+            >
+              <PanelExtensionAdapter config={{}} saveConfig={() => {}} initPanel={initPanel} />
+            </PanelSetup>
+          </MockPanelContextProvider>
+        </ThemeProvider>,
+      );
+
+      await act(async () => undefined);
+      const schema = await sig;
+
+      // THEN no schema is returned
+      expect(schema).toBeUndefined();
+    });
+
+    it("returns undefined when no active data source is available", async () => {
+      // GIVEN a panel with no active data source (empty fixture)
+      const sig = signal<Immutable<MessageDefinition> | undefined>();
+
+      // WHEN the panel requests a topic schema
+      const initPanel = (context: PanelExtensionContext) => {
+        const schema = context.getTopicSchema("/some/topic");
+        sig.resolve(schema);
+      };
+
+      render(
+        <ThemeProvider isDark>
+          <MockPanelContextProvider>
+            <PanelSetup>
+              <PanelExtensionAdapter config={{}} saveConfig={() => {}} initPanel={initPanel} />
+            </PanelSetup>
+          </MockPanelContextProvider>
+        </ThemeProvider>,
+      );
+
+      await act(async () => undefined);
+      const schema = await sig;
+
+      // THEN no schema is returned
+      expect(schema).toBeUndefined();
+    });
+
+    it("returns undefined when called after the panel is unmounted", async () => {
+      // GIVEN a panel context captured while the panel is mounted
+      const sig = signal<PanelExtensionContext>();
+
+      const initPanel = (context: PanelExtensionContext) => {
+        sig.resolve(context);
+      };
+
+      const { unmount } = render(
+        <ThemeProvider isDark>
+          <MockPanelContextProvider>
+            <PanelSetup
+              fixture={{
+                topics: [{ name: "/some/topic", schemaName: "some_msgs/Data" }],
+                datatypes: new Map([
+                  [
+                    "some_msgs/Data",
+                    {
+                      name: "some_msgs/Data",
+                      definitions: [
+                        { name: "value", type: "uint32", isArray: false, isComplex: false },
+                      ],
+                    },
+                  ],
+                ]),
+                frame: {},
+              }}
+            >
+              <PanelExtensionAdapter config={{}} saveConfig={() => {}} initPanel={initPanel} />
+            </PanelSetup>
+          </MockPanelContextProvider>
+        </ThemeProvider>,
+      );
+
+      await act(async () => undefined);
+      const context = await sig;
+
+      // WHEN the panel is unmounted and the schema is requested afterwards
+      unmount();
+
+      // THEN no schema is returned
+      expect(context.getTopicSchema("/some/topic")).toBeUndefined();
+    });
+  });
+
+  describe("getSchema", () => {
+    it("returns the schema definition for a known schemaName", async () => {
+      // GIVEN a panel with a schema registered in the datatypes
+      const sig = signal<Immutable<MessageDefinition> | undefined>();
+
+      // WHEN the panel requests the schema by its name
+      const initPanel = (context: PanelExtensionContext) => {
+        const schema = context.getSchema("known_schema/Data");
+        sig.resolve(schema);
+      };
+
+      render(
+        <ThemeProvider isDark>
+          <MockPanelContextProvider>
+            <PanelSetup
+              fixture={{
+                topics: [{ name: "/some/topic", schemaName: "known_schema/Data" }],
+                datatypes: new Map([
+                  [
+                    "known_schema/Data",
+                    {
+                      name: "known_schema/Data",
+                      definitions: [
+                        { name: "value", type: "uint32", isArray: false, isComplex: false },
+                      ],
+                    },
+                  ],
+                ]),
+                frame: {},
+              }}
+            >
+              <PanelExtensionAdapter config={{}} saveConfig={() => {}} initPanel={initPanel} />
+            </PanelSetup>
+          </MockPanelContextProvider>
+        </ThemeProvider>,
+      );
+
+      await act(async () => undefined);
+      const schema = await sig;
+
+      // THEN the matching message definition is returned
+      expect(schema).toEqual({
+        name: "known_schema/Data",
+        definitions: [{ name: "value", type: "uint32", isArray: false, isComplex: false }],
+      });
+    });
+
+    it("returns undefined for an unknown schemaName", async () => {
+      // GIVEN a panel whose datatypes do not contain the requested schema
+      const sig = signal<Immutable<MessageDefinition> | undefined>();
+
+      // WHEN the panel requests a nonexistent schema by name
+      const initPanel = (context: PanelExtensionContext) => {
+        const schema = context.getSchema("nonexistent_schema/Data");
+        sig.resolve(schema);
+      };
+
+      render(
+        <ThemeProvider isDark>
+          <MockPanelContextProvider>
+            <PanelSetup
+              fixture={{
+                topics: [{ name: "/some/topic", schemaName: "known_schema/Data" }],
+                datatypes: new Map([
+                  [
+                    "known_schema/Data",
+                    {
+                      name: "known_schema/Data",
+                      definitions: [
+                        { name: "value", type: "uint32", isArray: false, isComplex: false },
+                      ],
+                    },
+                  ],
+                ]),
+                frame: {},
+              }}
+            >
+              <PanelExtensionAdapter config={{}} saveConfig={() => {}} initPanel={initPanel} />
+            </PanelSetup>
+          </MockPanelContextProvider>
+        </ThemeProvider>,
+      );
+
+      await act(async () => undefined);
+      const schema = await sig;
+
+      // THEN no schema is returned
+      expect(schema).toBeUndefined();
+    });
+
+    it("returns undefined when no active data source is available", async () => {
+      // GIVEN a panel with no active data source (empty fixture)
+      const sig = signal<Immutable<MessageDefinition> | undefined>();
+
+      // WHEN the panel requests a schema by name
+      const initPanel = (context: PanelExtensionContext) => {
+        const schema = context.getSchema("some_msgs/Data");
+        sig.resolve(schema);
+      };
+
+      render(
+        <ThemeProvider isDark>
+          <MockPanelContextProvider>
+            <PanelSetup>
+              <PanelExtensionAdapter config={{}} saveConfig={() => {}} initPanel={initPanel} />
+            </PanelSetup>
+          </MockPanelContextProvider>
+        </ThemeProvider>,
+      );
+
+      await act(async () => undefined);
+      const schema = await sig;
+
+      // THEN no schema is returned
+      expect(schema).toBeUndefined();
+    });
+
+    it("returns undefined when called after the panel is unmounted", async () => {
+      // GIVEN a panel context captured while the panel is mounted
+      const sig = signal<PanelExtensionContext>();
+
+      const initPanel = (context: PanelExtensionContext) => {
+        sig.resolve(context);
+      };
+
+      const { unmount } = render(
+        <ThemeProvider isDark>
+          <MockPanelContextProvider>
+            <PanelSetup
+              fixture={{
+                topics: [{ name: "/some/topic", schemaName: "known_schema/Data" }],
+                datatypes: new Map([
+                  [
+                    "known_schema/Data",
+                    {
+                      name: "known_schema/Data",
+                      definitions: [
+                        { name: "value", type: "uint32", isArray: false, isComplex: false },
+                      ],
+                    },
+                  ],
+                ]),
+                frame: {},
+              }}
+            >
+              <PanelExtensionAdapter config={{}} saveConfig={() => {}} initPanel={initPanel} />
+            </PanelSetup>
+          </MockPanelContextProvider>
+        </ThemeProvider>,
+      );
+
+      await act(async () => undefined);
+      const context = await sig;
+
+      // WHEN the panel is unmounted and the schema is requested afterwards
+      unmount();
+
+      // THEN no schema is returned
+      expect(context.getSchema("known_schema/Data")).toBeUndefined();
     });
   });
 });

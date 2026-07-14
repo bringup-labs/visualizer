@@ -16,7 +16,6 @@ import {
   Immutable,
   MessageEvent,
   ParameterValue,
-  RegisterMessageConverterArgs,
   RenderState,
   Subscription,
   Topic,
@@ -31,6 +30,7 @@ import {
   Topic as PlayerTopic,
 } from "@lichtblick/suite-base/players/types";
 import { HoverValue } from "@lichtblick/suite-base/types/hoverValue";
+import { InstalledMessageConverter } from "@lichtblick/suite-base/types/messageConverters";
 
 import {
   collateTopicSchemaConversions,
@@ -39,6 +39,7 @@ import {
   mapDifference,
   TopicSchemaConversions,
 } from "./messageProcessing";
+import type { MessageConverterAlertHandler } from "./types";
 
 const EmptyParameters = new Map<string, ParameterValue>();
 
@@ -50,9 +51,10 @@ export type BuilderRenderStateInput = Immutable<{
   appSettings: Map<string, AppSettingValue> | undefined;
   colorScheme: RenderState["colorScheme"] | undefined;
   currentFrame: MessageEvent[] | undefined;
+  emitAlert?: MessageConverterAlertHandler;
   globalVariables: GlobalVariables;
   hoverValue: HoverValue | undefined;
-  messageConverters?: readonly RegisterMessageConverterArgs<unknown>[];
+  messageConverters?: readonly InstalledMessageConverter[];
   playerState: PlayerState | undefined;
   sharedPanelState: Record<string, unknown> | undefined;
   sortedTopics: readonly PlayerTopic[];
@@ -81,6 +83,7 @@ function initRenderStateBuilder(): BuildRenderStateFn {
   let prevSeekTime: number | undefined;
   let prevSortedTopics: BuilderRenderStateInput["sortedTopics"] | undefined;
   let prevMessageConverters: BuilderRenderStateInput["messageConverters"] | undefined;
+  // eslint-disable-next-line no-unassigned-vars
   let prevSharedPanelState: BuilderRenderStateInput["sharedPanelState"];
   let prevCurrentFrame: Immutable<RenderState["currentFrame"]>;
   let prevCollatedConversions: undefined | TopicSchemaConversions;
@@ -110,6 +113,7 @@ function initRenderStateBuilder(): BuildRenderStateFn {
       appSettings,
       colorScheme,
       currentFrame,
+      emitAlert,
       globalVariables,
       hoverValue,
       messageConverters,
@@ -249,6 +253,7 @@ function initRenderStateBuilder(): BuildRenderStateFn {
               topicSchemaConverters,
               postProcessedFrame,
               { ...globalVariables } as Readonly<GlobalVariables>,
+              { emitAlert },
             );
           }
           lastMessageByTopic.set(messageEvent.topic, messageEvent);
@@ -267,6 +272,7 @@ function initRenderStateBuilder(): BuildRenderStateFn {
               newConverters,
               postProcessedFrame,
               { ...globalVariables } as Readonly<GlobalVariables>,
+              { emitAlert },
             );
           }
         }
@@ -284,6 +290,7 @@ function initRenderStateBuilder(): BuildRenderStateFn {
               topicSchemaConverters,
               postProcessedFrame,
               { ...globalVariables } as Readonly<GlobalVariables>,
+              { emitAlert },
             );
           }
         }
@@ -340,6 +347,8 @@ function initRenderStateBuilder(): BuildRenderStateFn {
                   { ...messageEvent, topicConfig: configTopics[messageEvent.topic] },
                   topicSchemaConverters,
                   frames,
+                  undefined,
+                  { emitAlert },
                 );
               }
             },
