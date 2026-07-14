@@ -1,12 +1,21 @@
 {
   "extends": "@lichtblick/tsconfig/base",
   "include": ["./**/*"],
+  // Test files are run by jest (its own config), not shipped in the webpack
+  // bundle. Excluding them keeps jest globals (describe/it/expect) out of the
+  // production typecheck, which otherwise fails under TypeScript 6.0.
+  "exclude": ["**/*.test.ts", "**/*.test.tsx"],
   "compilerOptions": {
     "noEmit": true,
     "jsx": "react-jsx",
     "lib": ["dom", "dom.iterable", "es2022", "webworker", "ESNext.Disposable"],
     "experimentalDecorators": true,
     "useUnknownInCatchVariables": false,
+    // @lichtblick/tsconfig@1.0.2 base pins moduleResolution "node10", which
+    // TypeScript 6.0 (pulled in by the v1.27.1 sync) both deprecates (TS5107)
+    // and resolves types poorly under. Align with the rest of the repo (and
+    // suite-web, which this build reuses) by using "bundler".
+    "moduleResolution": "bundler",
     "paths": {
       "@lichtblick/suite-base/*": ["../../packages/suite-base/src/*"]
     }
