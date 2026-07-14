@@ -145,6 +145,34 @@ describe("ExtensionDetails Component", () => {
       });
     });
 
+    it("installs in the bringup embedded webview (acquireBringupApi present)", async () => {
+      (isDesktopApp as jest.Mock).mockReturnValue(false);
+      (global as { acquireBringupApi?: unknown }).acquireBringupApi = () => ({});
+
+      mockDownloadExtension.mockResolvedValue(new Uint8Array());
+      mockInstallExtensions.mockResolvedValue({});
+
+      try {
+        render(<ExtensionDetails extension={mockExtension} onClose={() => {}} installed={false} />);
+
+        const installButton = screen.getByText("Install");
+        fireEvent.click(installButton);
+
+        await waitFor(() => {
+          expect(mockDownloadExtension).toHaveBeenCalledWith(mockExtension.foxe);
+          expect(mockInstallExtensions).toHaveBeenCalledWith("local", [
+            { buffer: expect.any(Uint8Array) },
+          ] as ExtensionData[]);
+          expect(mockEnqueueSnackbar).toHaveBeenCalledWith(
+            `${mockExtension.name} installed successfully`,
+            { variant: "success" },
+          );
+        });
+      } finally {
+        delete (global as { acquireBringupApi?: unknown }).acquireBringupApi;
+      }
+    });
+
     it("displays readme correctly", async () => {
       (isDesktopApp as jest.Mock).mockReturnValue(true);
 

@@ -14,6 +14,7 @@ import { useAnalytics } from "@lichtblick/suite-base/context/AnalyticsContext";
 import { useExtensionCatalog } from "@lichtblick/suite-base/context/ExtensionCatalogContext";
 import { ExtensionMarketplaceDetail } from "@lichtblick/suite-base/context/ExtensionMarketplaceContext";
 import { AppEvent } from "@lichtblick/suite-base/services/IAnalytics";
+import isBringupEmbedded from "@lichtblick/suite-base/util/isBringupEmbedded";
 import isDesktopApp from "@lichtblick/suite-base/util/isDesktopApp";
 
 /**
@@ -37,7 +38,7 @@ export function useExtensionOperations(
 
   const handleInstall = useCallback(
     async (extension: Immutable<ExtensionMarketplaceDetail>) => {
-      if (!isDesktopApp()) {
+      if (!isDesktopApp() && !isBringupEmbedded()) {
         enqueueSnackbar("Download the desktop app to use marketplace extensions.", {
           variant: "error",
         });
