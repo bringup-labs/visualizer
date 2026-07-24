@@ -136,6 +136,13 @@ export const mainConfig =
       entry: params.entrypoint,
       devtool: isDev ? "eval-cheap-module-source-map" : params.prodSourceMap,
 
+      // The Zenoh data source pulls in @eclipse-zenoh/zenoh-ts, whose key-expression
+      // parser is wasm-bindgen output: it does `import * as wasm from "..._bg.wasm"`
+      // and reads named exports off it. Webpack 5 only resolves those when the async
+      // WebAssembly experiment is on; without it the build fails with
+      // "Can't import the named export '__wbindgen_start' from default-exporting module".
+      experiments: { asyncWebAssembly: true },
+
       output: {
         publicPath: params.publicPath ?? "auto",
 

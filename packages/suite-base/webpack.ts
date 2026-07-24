@@ -101,6 +101,12 @@ export function makeConfig(
         },
         {
           test: /\.wasm$/,
+          // @eclipse-zenoh/zenoh-ts ships wasm-bindgen output that imports its .wasm
+          // module directly and reads named exports (`__wbindgen_start`) off it. This
+          // asset/resource rule exposes only a default URL export, so it must not claim
+          // that file — webpack's async WebAssembly handling takes it instead
+          // (experiments.asyncWebAssembly in suite-web/src/webpackConfigs.ts).
+          exclude: /[\\/]@eclipse-zenoh[\\/]/,
           type: "asset/resource",
         },
         {
