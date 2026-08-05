@@ -51,6 +51,7 @@ export default React.memo(function LayoutRow({
   onOverwrite,
   onRevert,
   onMakePersonalCopy,
+  onPublishToCatalog,
 }: {
   layout: Layout;
   anySelectedModifiedLayouts: boolean;
@@ -65,6 +66,9 @@ export default React.memo(function LayoutRow({
   onOverwrite: (item: Layout) => void;
   onRevert: (item: Layout) => void;
   onMakePersonalCopy: (item: Layout) => void;
+  /** Promote a shared layout into the read-only organization catalog. Optional:
+   *  only supplied where organization layout storage is available. */
+  onPublishToCatalog?: (item: Layout) => void;
 }): React.JSX.Element {
   const isMounted = useMountedState();
   const [confirm, confirmModal] = useConfirm();
@@ -239,6 +243,19 @@ export default React.memo(function LayoutRow({
         onClick: shareAction,
         disabled: !isOnline || multiSelection,
         secondaryText: !isOnline ? "Offline" : undefined,
+      },
+    // Only ORG_WRITE layouts can be promoted: a personal layout must be shared
+    // first to get an externalId, and an ORG_READ layout is already in the catalog.
+    layout.permission === "ORG_WRITE" &&
+      orgLayoutCapabilities?.canPublishCatalog === true &&
+      onPublishToCatalog != undefined && {
+        type: "item",
+        key: "publish-catalog",
+        text: "Publish to organization catalog",
+        onClick: () => {
+          onPublishToCatalog(layout);
+        },
+        "data-testid": "publish-layout-to-catalog",
       },
     {
       type: "item",

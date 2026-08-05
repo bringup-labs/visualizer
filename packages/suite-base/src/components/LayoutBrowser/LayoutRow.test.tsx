@@ -335,3 +335,75 @@ describe("LayoutRow ORG_READ enforcement", () => {
     expect(screen.getByTestId("delete-layout")).toBeInTheDocument();
   });
 });
+
+describe("LayoutRow publish to catalog", () => {
+  const orgWriteLayout: Layout = LayoutBuilder.layout({ permission: "ORG_WRITE" });
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (LayoutManagerContext.useLayoutManager as jest.Mock).mockReturnValue(mockLayoutManager);
+    (useConfirmModule.useConfirm as jest.Mock).mockReturnValue([mockConfirm, mockConfirmModal]);
+  });
+
+  it("Given a catalog publisher and a shared layout, when publish is clicked, then onPublishToCatalog is called", () => {
+    const onPublishToCatalog = jest.fn();
+
+    renderComponent(
+      { layout: orgWriteLayout, onPublishToCatalog },
+      { orgLayoutCapabilities: { canPublishCatalog: true } },
+    );
+
+    fireEvent.click(screen.getByTestId("layout-actions"));
+    fireEvent.click(screen.getByText("Publish to organization catalog"));
+
+    expect(onPublishToCatalog).toHaveBeenCalledWith(orgWriteLayout);
+  });
+
+  it("Given no publish capability, when menu is opened on a shared layout, then publish is hidden", () => {
+    renderComponent(
+      { layout: orgWriteLayout, onPublishToCatalog: jest.fn() },
+      { orgLayoutCapabilities: { canPublishCatalog: false } },
+    );
+
+    fireEvent.click(screen.getByTestId("layout-actions"));
+
+    expect(screen.queryByTestId("publish-layout-to-catalog")).not.toBeInTheDocument();
+  });
+
+  it("Given a personal layout, when menu is opened, then publish is hidden", () => {
+    const personalLayout = LayoutBuilder.layout({ permission: "CREATOR_WRITE" });
+
+    renderComponent(
+      { layout: personalLayout, onPublishToCatalog: jest.fn() },
+      { orgLayoutCapabilities: { canPublishCatalog: true } },
+    );
+
+    fireEvent.click(screen.getByTestId("layout-actions"));
+
+    expect(screen.queryByTestId("publish-layout-to-catalog")).not.toBeInTheDocument();
+  });
+
+  it("Given a layout already in the catalog, when menu is opened, then publish is hidden", () => {
+    const catalogLayout = LayoutBuilder.layout({ permission: "ORG_READ" });
+
+    renderComponent(
+      { layout: catalogLayout, onPublishToCatalog: jest.fn() },
+      { orgLayoutCapabilities: { canPublishCatalog: true } },
+    );
+
+    fireEvent.click(screen.getByTestId("layout-actions"));
+
+    expect(screen.queryByTestId("publish-layout-to-catalog")).not.toBeInTheDocument();
+  });
+
+  it("Given no publish handler, when menu is opened on a shared layout, then publish is hidden", () => {
+    renderComponent(
+      { layout: orgWriteLayout },
+      { orgLayoutCapabilities: { canPublishCatalog: true } },
+    );
+
+    fireEvent.click(screen.getByTestId("layout-actions"));
+
+    expect(screen.queryByTestId("publish-layout-to-catalog")).not.toBeInTheDocument();
+  });
+});

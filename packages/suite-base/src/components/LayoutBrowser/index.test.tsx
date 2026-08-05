@@ -15,6 +15,7 @@ import {
 } from "@lichtblick/suite-base/context/CurrentLayoutContext";
 import { useCurrentUser } from "@lichtblick/suite-base/context/CurrentUserContext";
 import { useLayoutManager } from "@lichtblick/suite-base/context/LayoutManagerContext";
+import { useRemoteLayoutStorage } from "@lichtblick/suite-base/context/RemoteLayoutStorageContext";
 import { useWorkspaceStore } from "@lichtblick/suite-base/context/Workspace/WorkspaceContext";
 import { useWorkspaceActions } from "@lichtblick/suite-base/context/Workspace/useWorkspaceActions";
 import { useAppConfigurationValue } from "@lichtblick/suite-base/hooks/useAppConfigurationValue";
@@ -34,6 +35,10 @@ jest.mock("notistack", () => ({
 
 jest.mock("@lichtblick/suite-base/context/LayoutManagerContext", () => ({
   useLayoutManager: jest.fn(),
+}));
+
+jest.mock("@lichtblick/suite-base/context/RemoteLayoutStorageContext", () => ({
+  useRemoteLayoutStorage: jest.fn(),
 }));
 
 jest.mock("@lichtblick/suite-base/context/AnalyticsContext", () => ({
@@ -136,6 +141,7 @@ describe("LayoutBrowser", () => {
         setSharedSectionExpanded: jest.fn(),
       },
     });
+    (useRemoteLayoutStorage as jest.Mock).mockReturnValue(undefined);
     (useLayoutNavigation as jest.Mock).mockReturnValue({
       onSelectLayout: jest.fn(),
       state: {
@@ -446,6 +452,102 @@ describe("LayoutBrowser", () => {
       await waitFor(() => {
         expect(setPersonalExpandedMock).toHaveBeenCalledWith(true);
       });
+    });
+  });
+
+  describe("publish to organization catalog", () => {
+    const originalLayoutSectionMock = jest.requireMock("./LayoutSection").default;
+
+    let enqueueSnackbarMock: jest.Mock;
+    let updateLayoutMock: jest.Mock;
+
+    beforeEach(() => {
+      enqueueSnackbarMock = jest.fn();
+      (jest.requireMock("notistack").useSnackbar as jest.Mock).mockReturnValue({
+        enqueueSnackbar: enqueueSnackbarMock,
+      });
+      updateLayoutMock = jest.fn().mockResolvedValue({ status: "success" });
+      (useRemoteLayoutStorage as jest.Mock).mockReturnValue({ updateLayout: updateLayoutMock });
+    });
+
+    afterEach(() => {
+      jest.requireMock("./LayoutSection").default = originalLayoutSectionMock;
+    });
+
+    /** Renders the browser and hands back the onPublishToCatalog it gave LayoutSection. */
+    const capturePublishHandler = (): ((item: Layout) => Promise<void>) => {
+      let captured: ((item: Layout) => Promise<void>) | undefined;
+      jest.requireMock("./LayoutSection").default = jest
+        .fn()
+        .mockImplementation((props: { onPublishToCatalog?: (item: Layout) => Promise<void> }) => {
+          captured ??= props.onPublishToCatalog;
+          return <div data-testid="layout-section" />;
+        });
+
+      render(<LayoutBrowser />);
+
+      return captured!;
+    };
+
+    it("promotes the layout to ORG_READ through remote storage", async () => {
+      // GIVEN
+      const layout = LayoutBuilder.layout({ permission: "ORG_WRITE" });
+
+      // WHEN
+      await capturePublishHandler()(layout);
+
+      // THEN
+      expect(updateLayoutMock).toHaveBeenCalledWith({
+        id: layout.id,
+        externalId: layout.externalId,
+        permission: "ORG_READ",
+        savedAt: layout.baseline.savedAt,
+      });
+    });
+
+    it("tells the user the promotion is not instant", async () => {
+      // GIVEN
+      const layout = LayoutBuilder.layout({ permission: "ORG_WRITE" });
+
+      // WHEN
+      await capturePublishHandler()(layout);
+
+      // THEN
+      expect(enqueueSnackbarMock).toHaveBeenCalledWith(
+        "Published to the organization catalog. It will appear for everyone shortly.",
+        { variant: "success" },
+      );
+    });
+
+    it("rejects when the server reports a conflict", async () => {
+      // GIVEN
+      updateLayoutMock.mockResolvedValue({ status: "conflict" });
+      const layout = LayoutBuilder.layout({ permission: "ORG_WRITE" });
+
+      // WHEN / THEN
+      await expect(capturePublishHandler()(layout)).rejects.toThrow(/reload and try again/i);
+      expect(enqueueSnackbarMock).not.toHaveBeenCalled();
+    });
+
+    it("rejects when the layout has never been shared", async () => {
+      // GIVEN
+      const layout = {
+        ...LayoutBuilder.layout({ permission: "ORG_WRITE" }),
+        externalId: undefined,
+      };
+
+      // WHEN / THEN
+      await expect(capturePublishHandler()(layout)).rejects.toThrow(/has not been shared/i);
+      expect(updateLayoutMock).not.toHaveBeenCalled();
+    });
+
+    it("rejects when there is no organization layout storage", async () => {
+      // GIVEN
+      (useRemoteLayoutStorage as jest.Mock).mockReturnValue(undefined);
+      const layout = LayoutBuilder.layout({ permission: "ORG_WRITE" });
+
+      // WHEN / THEN
+      await expect(capturePublishHandler()(layout)).rejects.toThrow(/organization layout storage/i);
     });
   });
 });

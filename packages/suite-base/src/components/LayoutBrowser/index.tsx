@@ -37,6 +37,7 @@ import {
 import { LayoutData } from "@lichtblick/suite-base/context/CurrentLayoutContext/actions";
 import { useCurrentUser } from "@lichtblick/suite-base/context/CurrentUserContext";
 import { useLayoutManager } from "@lichtblick/suite-base/context/LayoutManagerContext";
+import { useRemoteLayoutStorage } from "@lichtblick/suite-base/context/RemoteLayoutStorageContext";
 import {
   WorkspaceStoreSelectors,
   useWorkspaceStore,
@@ -50,7 +51,11 @@ import { useLayoutTransfer } from "@lichtblick/suite-base/hooks/useLayoutTransfe
 import { usePrompt } from "@lichtblick/suite-base/hooks/usePrompt";
 import { defaultPlaybackConfig } from "@lichtblick/suite-base/providers/CurrentLayoutProvider/reducers";
 import { AppEvent } from "@lichtblick/suite-base/services/IAnalytics";
-import { Layout, layoutIsShared } from "@lichtblick/suite-base/services/ILayoutStorage";
+import {
+  ISO8601Timestamp,
+  Layout,
+  layoutIsShared,
+} from "@lichtblick/suite-base/services/ILayoutStorage";
 
 import LayoutSection from "./LayoutSection";
 import { useStyles } from "./index.style";
@@ -69,6 +74,7 @@ export default function LayoutBrowser({
   const { signIn } = useCurrentUser();
   const { enqueueSnackbar } = useSnackbar();
   const layoutManager = useLayoutManager();
+  const remoteLayoutStorage = useRemoteLayoutStorage();
   const [prompt, promptModal] = usePrompt();
   const analytics = useAnalytics();
 
@@ -271,6 +277,35 @@ export default function LayoutBrowser({
     [analytics, layoutManager, onSelectLayout, setPersonalSectionExpanded],
   );
 
+  // Promotion to the read-only catalog changes a layout's permission, which
+  // ILayoutManager.updateLayout cannot express, so it goes straight to remote
+  // storage. The provider's sync loop then pulls the new permission back down on
+  // its own schedule, hence the "shortly" in the notice below.
+  const onPublishToCatalog = useCallbackWithToast(
+    async (item: Layout) => {
+      if (remoteLayoutStorage == undefined) {
+        throw new Error("Publishing requires organization layout storage");
+      }
+      if (item.externalId == undefined) {
+        throw new Error("This layout has not been shared with the organization yet");
+      }
+      const result = await remoteLayoutStorage.updateLayout({
+        id: item.id,
+        externalId: item.externalId,
+        permission: "ORG_READ",
+        savedAt: item.baseline.savedAt ?? (new Date().toISOString() as ISO8601Timestamp),
+      });
+      if (result.status === "conflict") {
+        throw new Error("Someone else changed this layout — reload and try again");
+      }
+      enqueueSnackbar(
+        "Published to the organization catalog. It will appear for everyone shortly.",
+        { variant: "success" },
+      );
+    },
+    [remoteLayoutStorage, enqueueSnackbar],
+  );
+
   const showSignInPrompt =
     signIn != undefined && !layoutManager.supportsSharing && !hideSignInPrompt;
 
@@ -366,6 +401,7 @@ export default function LayoutBrowser({
           onOverwrite={onOverwriteLayout}
           onRevert={onRevertLayout}
           onMakePersonalCopy={onMakePersonalCopy}
+          onPublishToCatalog={onPublishToCatalog}
         />
         {layoutManager.supportsSharing && (
           <LayoutSection
@@ -387,6 +423,7 @@ export default function LayoutBrowser({
             onOverwrite={onOverwriteLayout}
             onRevert={onRevertLayout}
             onMakePersonalCopy={onMakePersonalCopy}
+            onPublishToCatalog={onPublishToCatalog}
           />
         )}
         {!enableNewTopNav && <Stack flexGrow={1} />}
