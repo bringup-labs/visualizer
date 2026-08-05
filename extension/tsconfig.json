@@ -1,11 +1,35 @@
+// Typecheck config for the embedded-visualizer extension.
+//
+// Nothing else type-checks extension/src: `build:packages` only covers packages/*, the root
+// tsconfig only includes root-level scripts + ci/ + e2e/ci-helpers/, and extension/webpack.config.ts
+// transpiles with babel (no ForkTsCheckerWebpackPlugin). This config is the extension's only type
+// gate, run in CI via `yarn extension:typecheck`.
+//
+// Modelled on packages/suite-base/tsconfig.json. Notable differences:
+//   - "moduleResolution": extension/package.json pins @lichtblick/tsconfig 1.0.2 (the rest of the
+//     repo is on 1.1.2), so "@lichtblick/tsconfig/base" resolves here to extension/node_modules,
+//     whose base still sets the deprecated "node"/node10 resolution -> TS5107 under TypeScript 6.0.
+//     Set "bundler" explicitly to match the rest of the repo. Remove once the pin is bumped.
+//   - "include" is scoped to ./src so that build output in extension/.webpack is not swept in.
+//   - packages/suite-base/src/typings supplies globals the extension relies on (e.g. ReactNull,
+//     which the webpack build injects via ProvidePlugin and jest injects via `globals`).
+//   - "types" pins jest + node because the *.test.tsx files next to the sources need jest globals.
 {
   "extends": "@lichtblick/tsconfig/base",
-  "include": ["**/*"],
+  "include": ["./src/**/*.ts", "./src/**/*.tsx", "../packages/suite-base/src/typings/**/*"],
   "compilerOptions": {
-    "jsx": "react-jsx",
-    "lib": ["ESNext.Disposable"],
-    "module": "commonjs",
     "noEmit": true,
-    "experimentalDecorators": true
+    "jsx": "react-jsx",
+    "lib": ["dom", "dom.iterable", "es2022", "webworker", "ESNext.Disposable"],
+    "moduleResolution": "bundler",
+    "types": ["jest", "node"],
+    "declarationMap": false,
+    "sourceMap": false,
+    "paths": {
+      "@lichtblick/suite-base/*": ["../packages/suite-base/src/*"]
+    },
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "useUnknownInCatchVariables": false
   }
 }

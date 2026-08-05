@@ -33,6 +33,7 @@
     "extension:build:dev": "webpack --mode development --progress --config extension/webpack.config.ts",
     "extension:build:prod": "webpack --mode production --progress --config extension/webpack.config.ts",
     "extension:serve": "webpack serve --mode development --progress --config extension/webpack.config.ts",
+    "extension:typecheck": "tsc --noEmit -p extension/tsconfig.json",
     "benchmark:serve": "webpack serve --mode development --progress --config benchmark/webpack.config.ts",
     "benchmark:build:prod": "webpack --mode production --progress --config benchmark/webpack.config.ts",
     "license-check": "ts-node ci/license-check.ts",
