@@ -74,6 +74,7 @@ jest.mock("@lichtblick/suite-base", () => ({
   Ros2LocalBagDataSourceFactory: jest.fn(),
   RosbridgeDataSourceFactory: jest.fn(),
   UlogLocalDataSourceFactory: jest.fn(),
+  ZenohDataSourceFactory: jest.fn(),
 }));
 
 jest.mock("./OrgLayoutDropdown", () => ({ OrgLayoutDropdown: () => null }));
@@ -88,6 +89,11 @@ function makeBridge(orgContext: OrgContextResponse | Error | "pending"): BridgeC
   return {
     request: async (method: string) => {
       bridgeCalls.push(method);
+      // The pending-source lookup is exercised elsewhere; resolving it with "no
+      // pending source" keeps its render gate out of the org-context tests.
+      if (method === "zenoh.pendingSource") {
+        return { url: null };
+      }
       if (orgContext === "pending") {
         return await new Promise(() => {});
       }
@@ -146,7 +152,7 @@ describe("ExtensionRoot org layout wiring", () => {
   it("provides remote layout storage scoped to the active org", async () => {
     await mount(makeBridge({ orgId: "org-a", orgRole: "member" }));
 
-    expect(bridgeCalls).toEqual(["session.getOrgContext"]);
+    expect(bridgeCalls).toContain("session.getOrgContext");
     expect(mockObserved.mounts).toBe(1);
     expect(mockObserved.hasRemoteStorage).toBe(true);
     expect(mockObserved.workspace).toBe("org-a");
