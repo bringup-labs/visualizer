@@ -82,9 +82,12 @@ jest.mock("./bridge/BridgeExtensionLoader", () => ({ BridgeExtensionLoader: jest
 
 type OrgContextResponse = { orgId: string; orgRole: string } | undefined;
 
+const bridgeCalls: string[] = [];
+
 function makeBridge(orgContext: OrgContextResponse | Error | "pending"): BridgeClient {
   return {
-    request: async () => {
+    request: async (method: string) => {
+      bridgeCalls.push(method);
       if (orgContext === "pending") {
         return await new Promise(() => {});
       }
@@ -106,6 +109,7 @@ describe("ExtensionRoot org layout wiring", () => {
   let root: Root;
 
   beforeEach(() => {
+    bridgeCalls.length = 0;
     mockObserved.mounts = 0;
     mockObserved.hasRemoteStorage = false;
     mockObserved.workspace = undefined;
@@ -142,6 +146,7 @@ describe("ExtensionRoot org layout wiring", () => {
   it("provides remote layout storage scoped to the active org", async () => {
     await mount(makeBridge({ orgId: "org-a", orgRole: "member" }));
 
+    expect(bridgeCalls).toEqual(["session.getOrgContext"]);
     expect(mockObserved.mounts).toBe(1);
     expect(mockObserved.hasRemoteStorage).toBe(true);
     expect(mockObserved.workspace).toBe("org-a");
