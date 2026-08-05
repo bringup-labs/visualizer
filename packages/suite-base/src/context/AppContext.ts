@@ -18,6 +18,10 @@ import type { Player } from "@lichtblick/suite-base/players/types";
 
 interface IAppContext {
   appBarLayoutButton?: React.JSX.Element;
+  /** Capabilities for organization-shared layouts, supplied by an embedding
+   *  host. Advisory and UI-only: the server is the authority and rejects
+   *  unauthorized writes regardless of what is rendered. */
+  orgLayoutCapabilities?: { canPublishCatalog: boolean };
   appBarMenuItems?: readonly AppBarMenuItem[];
   createEvent?: (args: {
     deviceId: string;

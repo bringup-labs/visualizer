@@ -29,6 +29,7 @@ import {
 } from "react";
 import { useMountedState } from "react-use";
 
+import { useAppContext } from "@lichtblick/suite-base/context/AppContext";
 import { useLayoutManager } from "@lichtblick/suite-base/context/LayoutManagerContext";
 import { useConfirm } from "@lichtblick/suite-base/hooks/useConfirm";
 import { Layout, layoutIsShared } from "@lichtblick/suite-base/services/ILayoutStorage";
@@ -50,6 +51,7 @@ export default React.memo(function LayoutRow({
   onOverwrite,
   onRevert,
   onMakePersonalCopy,
+  onPublishToCatalog,
 }: {
   layout: Layout;
   anySelectedModifiedLayouts: boolean;
@@ -64,10 +66,14 @@ export default React.memo(function LayoutRow({
   onOverwrite: (item: Layout) => void;
   onRevert: (item: Layout) => void;
   onMakePersonalCopy: (item: Layout) => void;
+  /** Promote a shared layout into the read-only organization catalog. Optional:
+   *  only supplied where organization layout storage is available. */
+  onPublishToCatalog?: (item: Layout) => void;
 }): React.JSX.Element {
   const isMounted = useMountedState();
   const [confirm, confirmModal] = useConfirm();
   const layoutManager = useLayoutManager();
+  const { orgLayoutCapabilities } = useAppContext();
 
   const [editingName, setEditingName] = useState(false);
   const [nameFieldValue, setNameFieldValue] = useState("");
@@ -81,6 +87,12 @@ export default React.memo(function LayoutRow({
   const deletedOnServer = layout.syncInfo?.status === "remotely-deleted";
   const hasModifications = layout.working != undefined;
   const multiSelection = multiSelectedIds.length > 1;
+
+  // ORG_READ is the admin-published, read-only catalog tier. Everyone can select
+  // and copy those layouts; only a catalog publisher may modify them. Without
+  // this the menu offers writes the server rejects with 403.
+  const isReadOnlyCatalogLayout =
+    layout.permission === "ORG_READ" && orgLayoutCapabilities?.canPublishCatalog !== true;
 
   useLayoutEffect(() => {
     const onlineListener = () => {
@@ -202,7 +214,7 @@ export default React.memo(function LayoutRow({
   }, []);
 
   const menuItems: (boolean | LayoutActionMenuItem)[] = [
-    {
+    !isReadOnlyCatalogLayout && {
       type: "item",
       key: "rename",
       text: "Rename",
@@ -232,6 +244,21 @@ export default React.memo(function LayoutRow({
         disabled: !isOnline || multiSelection,
         secondaryText: !isOnline ? "Offline" : undefined,
       },
+    // Only ORG_WRITE layouts can be promoted: a personal layout must be shared
+    // first to get an externalId, and an ORG_READ layout is already in the catalog.
+    layout.permission === "ORG_WRITE" &&
+      orgLayoutCapabilities?.canPublishCatalog === true &&
+      onPublishToCatalog != undefined && {
+        type: "item",
+        key: "publish-catalog",
+        text: "Publish to organization catalog",
+        onClick: () => {
+          onPublishToCatalog(layout);
+        },
+        "data-testid": "publish-layout-to-catalog",
+        disabled: !isOnline || multiSelection,
+        secondaryText: !isOnline ? "Offline" : undefined,
+      },
     {
       type: "item",
       key: "export",
@@ -241,7 +268,7 @@ export default React.memo(function LayoutRow({
       "data-testid": "export-layout",
     },
     { key: "divider_1", type: "divider" },
-    {
+    !isReadOnlyCatalogLayout && {
       type: "item",
       key: "delete",
       text: "Delete",
@@ -251,8 +278,8 @@ export default React.memo(function LayoutRow({
   ];
 
   if (hasModifications) {
-    const sectionItems: LayoutActionMenuItem[] = [
-      {
+    const sectionItems: (boolean | LayoutActionMenuItem)[] = [
+      !isReadOnlyCatalogLayout && {
         type: "item",
         key: "overwrite",
         text: "Save changes",
@@ -260,6 +287,9 @@ export default React.memo(function LayoutRow({
         disabled: deletedOnServer || (layoutIsShared(layout) && !isOnline),
         secondaryText: layoutIsShared(layout) && !isOnline ? "Offline" : undefined,
       },
+      // Revert stays available on a read-only catalog layout: it only clears the
+      // local working copy, so it fires no remote write and cannot be rejected.
+      // Hiding it would strand the user with a permanently modified catalog layout.
       {
         type: "item",
         key: "revert",

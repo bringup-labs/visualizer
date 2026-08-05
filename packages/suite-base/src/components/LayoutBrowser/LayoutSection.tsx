@@ -34,6 +34,7 @@ export default function LayoutSection({
   onOverwrite,
   onRevert,
   onMakePersonalCopy,
+  onPublishToCatalog,
 }: Readonly<{
   title: string | undefined;
   disablePadding?: boolean;
@@ -53,6 +54,7 @@ export default function LayoutSection({
   onOverwrite: (item: Layout) => void;
   onRevert: (item: Layout) => void;
   onMakePersonalCopy: (item: Layout) => void;
+  onPublishToCatalog?: (item: Layout) => void;
 }>): React.JSX.Element {
   const { classes, cx } = useLayoutSectionStyles();
 
@@ -100,6 +102,7 @@ export default function LayoutSection({
               onOverwrite={onOverwrite}
               onRevert={onRevert}
               onMakePersonalCopy={onMakePersonalCopy}
+              onPublishToCatalog={onPublishToCatalog}
             />
           ))}
         </List>

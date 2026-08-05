@@ -3,6 +3,9 @@
   "transform": {
     "\\.[jt]sx?$": ["babel-jest", { "rootMode": "upward" }]
   },
+  "//": "Match the webpack DefinePlugin/ProvidePlugin globals the extension bundle is built with",
+  "globals": { "ReactNull": null },
+  "setupFiles": ["<rootDir>/src/test/setup.ts"],
   "moduleNameMapper": {
     "@lichtblick/suite-base/(.*)": "<rootDir>/../packages/suite-base/src/$1"
   },

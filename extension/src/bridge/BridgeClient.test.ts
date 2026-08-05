@@ -1,7 +1,8 @@
 // SPDX-FileCopyrightText: Copyright (C) 2023-2026 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)<lichtblick@bmwgroup.com>
 // SPDX-License-Identifier: MPL-2.0
 
-import { BridgeClient, BridgeTransport } from "./BridgeClient";
+import { BridgeClient, BridgeTransport, createMockTransport } from "./BridgeClient";
+import { VIS_BRIDGE } from "./types";
 
 function makeFakeTransport() {
   const sent: any[] = [];
@@ -61,5 +62,34 @@ describe("BridgeClient", () => {
     } finally {
       jest.useRealTimers();
     }
+  });
+});
+
+describe("createMockTransport", () => {
+  it("answers every declared VIS_BRIDGE method", async () => {
+    // Declaring a method in VIS_BRIDGE without adding a case here makes the mock
+    // reply "Unknown bridge method: X", which nothing catches at build time and
+    // only shows up as a runtime failure in plain-browser dev mode.
+    const client = new BridgeClient(createMockTransport());
+    const methods = Object.values(VIS_BRIDGE);
+
+    const answered = await Promise.all(
+      methods.map(async (method) => {
+        await client.request(method, {});
+        return method;
+      }),
+    );
+
+    expect(answered).toEqual(methods);
+  });
+
+  it("reports remote layout updates as conflicts", async () => {
+    // Deliberate: dev mode has no server, so reporting success would let the
+    // sync loop mark layouts tracked against a backend that does not exist.
+    const client = new BridgeClient(createMockTransport());
+
+    await expect(client.request(VIS_BRIDGE.layoutsRemoteUpdate, {})).resolves.toEqual({
+      status: "conflict",
+    });
   });
 });

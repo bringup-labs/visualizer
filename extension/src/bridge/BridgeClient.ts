@@ -204,6 +204,41 @@ export function createMockTransport(): BridgeTransport {
       case VIS_BRIDGE.pluginsInstall:
       case VIS_BRIDGE.pluginsUninstall:
         return { type: "response", id, ok: true, data: {} };
+      case VIS_BRIDGE.sessionGetOrgContext:
+        // Plain-browser dev mode has no host session: behave like a signed-out
+        // user so the app falls back to personal layouts only.
+        return { type: "response", id, ok: true, data: undefined };
+      case VIS_BRIDGE.layoutsRemoteList:
+        return { type: "response", id, ok: true, data: [] };
+      case VIS_BRIDGE.layoutsRemoteGet:
+        return { type: "response", id, ok: true, data: undefined };
+      case VIS_BRIDGE.layoutsRemoteCreate: {
+        const { layoutId, name, data, permission } = req as {
+          layoutId: string;
+          name: string;
+          data: unknown;
+          permission: string;
+        };
+        return {
+          type: "response",
+          id,
+          ok: true,
+          data: {
+            id: layoutId,
+            externalId: `mock-${layoutId}`,
+            name,
+            data,
+            permission,
+            savedAt: new Date().toISOString(),
+          },
+        };
+      }
+      case VIS_BRIDGE.layoutsRemoteUpdate:
+        // Dev mode has no server, so reporting success would let the sync loop
+        // mark layouts `tracked` against a backend that does not exist.
+        return { type: "response", id, ok: true, data: { status: "conflict" } };
+      case VIS_BRIDGE.layoutsRemoteDelete:
+        return { type: "response", id, ok: true, data: false };
       case VIS_BRIDGE.themeGet:
         return { type: "response", id, ok: true, data: { kind: "dark" } };
       default:

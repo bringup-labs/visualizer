@@ -6,9 +6,11 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 
 import "@testing-library/jest-dom";
+import { AppContext, IAppContext } from "@lichtblick/suite-base/context/AppContext";
 import { LayoutID } from "@lichtblick/suite-base/context/CurrentLayoutContext";
 import * as LayoutManagerContext from "@lichtblick/suite-base/context/LayoutManagerContext";
 import * as useConfirmModule from "@lichtblick/suite-base/hooks/useConfirm";
+import { Layout } from "@lichtblick/suite-base/services/ILayoutStorage";
 import LayoutBuilder from "@lichtblick/suite-base/testing/builders/LayoutBuilder";
 import { BasicBuilder } from "@lichtblick/test-builders";
 
@@ -53,29 +55,34 @@ const mockConfirmModal = <div data-testid="confirm-modal" />;
 
 const layoutId = BasicBuilder.string();
 const layoutName = BasicBuilder.string();
+// LayoutBuilder.permission is sampled at random from all three permissions. Pin it
+// here so the ORG_READ read-only rules below never fire for the shared default layout.
 const defaultLayout = LayoutBuilder.layout({
   id: layoutId as LayoutID,
   name: layoutName,
+  permission: "CREATOR_WRITE",
 });
 
-const renderComponent = (props = {}) =>
+const renderComponent = (props = {}, appContext: Partial<IAppContext> = {}) =>
   render(
-    <LayoutRow
-      layout={defaultLayout}
-      anySelectedModifiedLayouts={false}
-      multiSelectedIds={[]}
-      selected={false}
-      onSelect={jest.fn()}
-      onRename={jest.fn()}
-      onDuplicate={jest.fn()}
-      onDelete={jest.fn()}
-      onShare={jest.fn()}
-      onExport={jest.fn()}
-      onOverwrite={jest.fn()}
-      onRevert={jest.fn()}
-      onMakePersonalCopy={jest.fn()}
-      {...props}
-    />,
+    <AppContext.Provider value={{ wrapPlayer: (child) => child, ...appContext }}>
+      <LayoutRow
+        layout={defaultLayout}
+        anySelectedModifiedLayouts={false}
+        multiSelectedIds={[]}
+        selected={false}
+        onSelect={jest.fn()}
+        onRename={jest.fn()}
+        onDuplicate={jest.fn()}
+        onDelete={jest.fn()}
+        onShare={jest.fn()}
+        onExport={jest.fn()}
+        onOverwrite={jest.fn()}
+        onRevert={jest.fn()}
+        onMakePersonalCopy={jest.fn()}
+        {...props}
+      />
+    </AppContext.Provider>,
   );
 
 describe("LayoutRow rendering", () => {
@@ -254,5 +261,198 @@ describe("LayoutRow rendering", () => {
     fireEvent.click(screen.getByTestId("layout-actions"));
 
     expect(screen.getByTestId("duplicate-layout")).toBeInTheDocument();
+  });
+});
+
+describe("LayoutRow ORG_READ enforcement", () => {
+  const orgReadLayout: Layout = LayoutBuilder.layout({ permission: "ORG_READ" });
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (LayoutManagerContext.useLayoutManager as jest.Mock).mockReturnValue(mockLayoutManager);
+    (useConfirmModule.useConfirm as jest.Mock).mockReturnValue([mockConfirm, mockConfirmModal]);
+  });
+
+  it("Given a read-only org layout and no publish capability, when menu is opened, then destructive actions are hidden", () => {
+    renderComponent(
+      { layout: orgReadLayout },
+      { orgLayoutCapabilities: { canPublishCatalog: false } },
+    );
+
+    fireEvent.click(screen.getByTestId("layout-actions"));
+
+    expect(screen.queryByTestId("rename-layout")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("delete-layout")).not.toBeInTheDocument();
+    expect(screen.queryByText("Save changes")).not.toBeInTheDocument();
+  });
+
+  // Revert only clears the local working copy — it fires no remote write and cannot
+  // 403 — so it stays available. Without it a stray panel drag would leave a catalog
+  // layout permanently dirty with no way back to the published version.
+  it("Given a modified read-only org layout, when menu is opened, then Revert is still offered", () => {
+    const modifiedCatalogLayout = LayoutBuilder.layout({
+      permission: "ORG_READ",
+      working: LayoutBuilder.baseline(),
+      syncInfo: undefined,
+    });
+
+    renderComponent(
+      { layout: modifiedCatalogLayout },
+      { orgLayoutCapabilities: { canPublishCatalog: false } },
+    );
+
+    fireEvent.click(screen.getByTestId("layout-actions"));
+
+    expect(screen.getByText("Revert")).toBeInTheDocument();
+    expect(screen.queryByText("Save changes")).not.toBeInTheDocument();
+  });
+
+  it("Given a read-only org layout, when no host supplies capabilities, then destructive actions are hidden", () => {
+    renderComponent({ layout: orgReadLayout });
+
+    fireEvent.click(screen.getByTestId("layout-actions"));
+
+    expect(screen.queryByTestId("rename-layout")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("delete-layout")).not.toBeInTheDocument();
+  });
+
+  it("Given a read-only org layout, when menu is opened, then a personal copy is still offered", () => {
+    renderComponent(
+      { layout: orgReadLayout },
+      { orgLayoutCapabilities: { canPublishCatalog: false } },
+    );
+
+    fireEvent.click(screen.getByTestId("layout-actions"));
+
+    expect(screen.getByText("Make a personal copy")).toBeInTheDocument();
+    expect(screen.getByText("Export…")).toBeInTheDocument();
+  });
+
+  it("Given a catalog publisher, when menu is opened on a read-only org layout, then destructive actions are restored", () => {
+    renderComponent(
+      { layout: orgReadLayout },
+      { orgLayoutCapabilities: { canPublishCatalog: true } },
+    );
+
+    fireEvent.click(screen.getByTestId("layout-actions"));
+
+    expect(screen.getByTestId("rename-layout")).toBeInTheDocument();
+    expect(screen.getByTestId("delete-layout")).toBeInTheDocument();
+    expect(screen.getByText("Save changes")).toBeInTheDocument();
+  });
+
+  it("Given a writable org layout and no publish capability, when menu is opened, then destructive actions remain", () => {
+    const orgWriteLayout = LayoutBuilder.layout({ permission: "ORG_WRITE" });
+
+    renderComponent(
+      { layout: orgWriteLayout },
+      { orgLayoutCapabilities: { canPublishCatalog: false } },
+    );
+
+    fireEvent.click(screen.getByTestId("layout-actions"));
+
+    expect(screen.getByTestId("rename-layout")).toBeInTheDocument();
+    expect(screen.getByTestId("delete-layout")).toBeInTheDocument();
+  });
+});
+
+describe("LayoutRow publish to catalog", () => {
+  const orgWriteLayout: Layout = LayoutBuilder.layout({ permission: "ORG_WRITE" });
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockLayoutManager.isOnline = true;
+    (LayoutManagerContext.useLayoutManager as jest.Mock).mockReturnValue(mockLayoutManager);
+    (useConfirmModule.useConfirm as jest.Mock).mockReturnValue([mockConfirm, mockConfirmModal]);
+  });
+
+  it("Given a catalog publisher and a shared layout, when publish is clicked, then onPublishToCatalog is called", () => {
+    const onPublishToCatalog = jest.fn();
+
+    renderComponent(
+      { layout: orgWriteLayout, onPublishToCatalog },
+      { orgLayoutCapabilities: { canPublishCatalog: true } },
+    );
+
+    fireEvent.click(screen.getByTestId("layout-actions"));
+    fireEvent.click(screen.getByText("Publish to organization catalog"));
+
+    expect(onPublishToCatalog).toHaveBeenCalledWith(orgWriteLayout);
+  });
+
+  it("Given no publish capability, when menu is opened on a shared layout, then publish is hidden", () => {
+    renderComponent(
+      { layout: orgWriteLayout, onPublishToCatalog: jest.fn() },
+      { orgLayoutCapabilities: { canPublishCatalog: false } },
+    );
+
+    fireEvent.click(screen.getByTestId("layout-actions"));
+
+    expect(screen.queryByTestId("publish-layout-to-catalog")).not.toBeInTheDocument();
+  });
+
+  it("Given a personal layout, when menu is opened, then publish is hidden", () => {
+    const personalLayout = LayoutBuilder.layout({ permission: "CREATOR_WRITE" });
+
+    renderComponent(
+      { layout: personalLayout, onPublishToCatalog: jest.fn() },
+      { orgLayoutCapabilities: { canPublishCatalog: true } },
+    );
+
+    fireEvent.click(screen.getByTestId("layout-actions"));
+
+    expect(screen.queryByTestId("publish-layout-to-catalog")).not.toBeInTheDocument();
+  });
+
+  it("Given a layout already in the catalog, when menu is opened, then publish is hidden", () => {
+    const catalogLayout = LayoutBuilder.layout({ permission: "ORG_READ" });
+
+    renderComponent(
+      { layout: catalogLayout, onPublishToCatalog: jest.fn() },
+      { orgLayoutCapabilities: { canPublishCatalog: true } },
+    );
+
+    fireEvent.click(screen.getByTestId("layout-actions"));
+
+    expect(screen.queryByTestId("publish-layout-to-catalog")).not.toBeInTheDocument();
+  });
+
+  it("Given no publish handler, when menu is opened on a shared layout, then publish is hidden", () => {
+    renderComponent(
+      { layout: orgWriteLayout },
+      { orgLayoutCapabilities: { canPublishCatalog: true } },
+    );
+
+    fireEvent.click(screen.getByTestId("layout-actions"));
+
+    expect(screen.queryByTestId("publish-layout-to-catalog")).not.toBeInTheDocument();
+  });
+
+  it("Given offline, when menu is opened on a shared layout, then publish is disabled", () => {
+    mockLayoutManager.isOnline = false;
+
+    renderComponent(
+      { layout: orgWriteLayout, onPublishToCatalog: jest.fn() },
+      { orgLayoutCapabilities: { canPublishCatalog: true } },
+    );
+
+    fireEvent.click(screen.getByTestId("layout-actions"));
+
+    expect(screen.getByTestId("publish-layout-to-catalog")).toBeDisabled();
+  });
+
+  it("Given multi-selection, when menu is opened on a shared layout, then publish is disabled", () => {
+    renderComponent(
+      {
+        layout: orgWriteLayout,
+        onPublishToCatalog: jest.fn(),
+        multiSelectedIds: [BasicBuilder.string(), BasicBuilder.string()],
+      },
+      { orgLayoutCapabilities: { canPublishCatalog: true } },
+    );
+
+    fireEvent.click(screen.getByTestId("layout-actions"));
+
+    expect(screen.getByTestId("publish-layout-to-catalog")).toBeDisabled();
   });
 });
