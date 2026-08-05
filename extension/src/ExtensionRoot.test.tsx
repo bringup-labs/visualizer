@@ -156,6 +156,16 @@ describe("ExtensionRoot org layout wiring", () => {
     expect(mockObserved.hasRemoteStorage).toBe(false);
   });
 
+  it("provides no remote layout storage for a context with no org id", async () => {
+    // A malformed host response must not namespace the layout cache as
+    // `remote-`; it is not an org session with a missing id.
+    await mount(makeBridge({ orgId: "", orgRole: "admin" }));
+
+    expect(mockObserved.mounts).toBe(1);
+    expect(mockObserved.hasRemoteStorage).toBe(false);
+    expect(mockObserved.canPublishCatalog).toBe(false);
+  });
+
   it("degrades to personal layouts when the org lookup fails", async () => {
     await mount(makeBridge(new Error("bridge unavailable")));
 

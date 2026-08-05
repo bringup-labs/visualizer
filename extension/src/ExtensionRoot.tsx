@@ -68,8 +68,11 @@ export function ExtensionRoot(props: {
       .then((ctx) => {
         if (!cancelled) {
           // The host preserves `undefined` for a signed-out user; over IPC that
-          // arrives as an absent `data` key. It is not an org with a missing id.
-          setOrgLookup({ value: ctx });
+          // arrives as an absent `data` key. Anything without an org id counts
+          // as "no org" rather than an org session with a missing id, which
+          // would otherwise namespace the layout cache as `remote-`.
+          const hasOrgId = ctx != undefined && ctx.orgId.length > 0;
+          setOrgLookup({ value: hasOrgId ? ctx : undefined });
         }
       })
       .catch(() => {
