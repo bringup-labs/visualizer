@@ -284,7 +284,27 @@ describe("LayoutRow ORG_READ enforcement", () => {
     expect(screen.queryByTestId("rename-layout")).not.toBeInTheDocument();
     expect(screen.queryByTestId("delete-layout")).not.toBeInTheDocument();
     expect(screen.queryByText("Save changes")).not.toBeInTheDocument();
-    expect(screen.queryByText("Revert")).not.toBeInTheDocument();
+  });
+
+  // Revert only clears the local working copy — it fires no remote write and cannot
+  // 403 — so it stays available. Without it a stray panel drag would leave a catalog
+  // layout permanently dirty with no way back to the published version.
+  it("Given a modified read-only org layout, when menu is opened, then Revert is still offered", () => {
+    const modifiedCatalogLayout = LayoutBuilder.layout({
+      permission: "ORG_READ",
+      working: LayoutBuilder.baseline(),
+      syncInfo: undefined,
+    });
+
+    renderComponent(
+      { layout: modifiedCatalogLayout },
+      { orgLayoutCapabilities: { canPublishCatalog: false } },
+    );
+
+    fireEvent.click(screen.getByTestId("layout-actions"));
+
+    expect(screen.getByText("Revert")).toBeInTheDocument();
+    expect(screen.queryByText("Save changes")).not.toBeInTheDocument();
   });
 
   it("Given a read-only org layout, when no host supplies capabilities, then destructive actions are hidden", () => {
@@ -341,6 +361,7 @@ describe("LayoutRow publish to catalog", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockLayoutManager.isOnline = true;
     (LayoutManagerContext.useLayoutManager as jest.Mock).mockReturnValue(mockLayoutManager);
     (useConfirmModule.useConfirm as jest.Mock).mockReturnValue([mockConfirm, mockConfirmModal]);
   });
@@ -405,5 +426,33 @@ describe("LayoutRow publish to catalog", () => {
     fireEvent.click(screen.getByTestId("layout-actions"));
 
     expect(screen.queryByTestId("publish-layout-to-catalog")).not.toBeInTheDocument();
+  });
+
+  it("Given offline, when menu is opened on a shared layout, then publish is disabled", () => {
+    mockLayoutManager.isOnline = false;
+
+    renderComponent(
+      { layout: orgWriteLayout, onPublishToCatalog: jest.fn() },
+      { orgLayoutCapabilities: { canPublishCatalog: true } },
+    );
+
+    fireEvent.click(screen.getByTestId("layout-actions"));
+
+    expect(screen.getByTestId("publish-layout-to-catalog")).toBeDisabled();
+  });
+
+  it("Given multi-selection, when menu is opened on a shared layout, then publish is disabled", () => {
+    renderComponent(
+      {
+        layout: orgWriteLayout,
+        onPublishToCatalog: jest.fn(),
+        multiSelectedIds: [BasicBuilder.string(), BasicBuilder.string()],
+      },
+      { orgLayoutCapabilities: { canPublishCatalog: true } },
+    );
+
+    fireEvent.click(screen.getByTestId("layout-actions"));
+
+    expect(screen.getByTestId("publish-layout-to-catalog")).toBeDisabled();
   });
 });

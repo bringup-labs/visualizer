@@ -256,6 +256,8 @@ export default React.memo(function LayoutRow({
           onPublishToCatalog(layout);
         },
         "data-testid": "publish-layout-to-catalog",
+        disabled: !isOnline || multiSelection,
+        secondaryText: !isOnline ? "Offline" : undefined,
       },
     {
       type: "item",
@@ -285,7 +287,10 @@ export default React.memo(function LayoutRow({
         disabled: deletedOnServer || (layoutIsShared(layout) && !isOnline),
         secondaryText: layoutIsShared(layout) && !isOnline ? "Offline" : undefined,
       },
-      !isReadOnlyCatalogLayout && {
+      // Revert stays available on a read-only catalog layout: it only clears the
+      // local working copy, so it fires no remote write and cannot be rejected.
+      // Hiding it would strand the user with a permanently modified catalog layout.
+      {
         type: "item",
         key: "revert",
         text: "Revert",
