@@ -29,6 +29,7 @@ import {
 } from "react";
 import { useMountedState } from "react-use";
 
+import { useAppContext } from "@lichtblick/suite-base/context/AppContext";
 import { useLayoutManager } from "@lichtblick/suite-base/context/LayoutManagerContext";
 import { useConfirm } from "@lichtblick/suite-base/hooks/useConfirm";
 import { Layout, layoutIsShared } from "@lichtblick/suite-base/services/ILayoutStorage";
@@ -68,6 +69,7 @@ export default React.memo(function LayoutRow({
   const isMounted = useMountedState();
   const [confirm, confirmModal] = useConfirm();
   const layoutManager = useLayoutManager();
+  const { orgLayoutCapabilities } = useAppContext();
 
   const [editingName, setEditingName] = useState(false);
   const [nameFieldValue, setNameFieldValue] = useState("");
@@ -81,6 +83,12 @@ export default React.memo(function LayoutRow({
   const deletedOnServer = layout.syncInfo?.status === "remotely-deleted";
   const hasModifications = layout.working != undefined;
   const multiSelection = multiSelectedIds.length > 1;
+
+  // ORG_READ is the admin-published, read-only catalog tier. Everyone can select
+  // and copy those layouts; only a catalog publisher may modify them. Without
+  // this the menu offers writes the server rejects with 403.
+  const isReadOnlyCatalogLayout =
+    layout.permission === "ORG_READ" && orgLayoutCapabilities?.canPublishCatalog !== true;
 
   useLayoutEffect(() => {
     const onlineListener = () => {
@@ -202,7 +210,7 @@ export default React.memo(function LayoutRow({
   }, []);
 
   const menuItems: (boolean | LayoutActionMenuItem)[] = [
-    {
+    !isReadOnlyCatalogLayout && {
       type: "item",
       key: "rename",
       text: "Rename",
@@ -241,7 +249,7 @@ export default React.memo(function LayoutRow({
       "data-testid": "export-layout",
     },
     { key: "divider_1", type: "divider" },
-    {
+    !isReadOnlyCatalogLayout && {
       type: "item",
       key: "delete",
       text: "Delete",
@@ -251,8 +259,8 @@ export default React.memo(function LayoutRow({
   ];
 
   if (hasModifications) {
-    const sectionItems: LayoutActionMenuItem[] = [
-      {
+    const sectionItems: (boolean | LayoutActionMenuItem)[] = [
+      !isReadOnlyCatalogLayout && {
         type: "item",
         key: "overwrite",
         text: "Save changes",
@@ -260,7 +268,7 @@ export default React.memo(function LayoutRow({
         disabled: deletedOnServer || (layoutIsShared(layout) && !isOnline),
         secondaryText: layoutIsShared(layout) && !isOnline ? "Offline" : undefined,
       },
-      {
+      !isReadOnlyCatalogLayout && {
         type: "item",
         key: "revert",
         text: "Revert",
