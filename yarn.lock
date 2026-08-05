@@ -3795,13 +3795,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@lichtblick/tsconfig@npm:1.0.2":
-  version: 1.0.2
-  resolution: "@lichtblick/tsconfig@npm:1.0.2"
-  checksum: 10/67278b0d2089be3f488a5514d6d26af0f20f1597ca679ca323f153e4b093eec3f69a3094484cd4e448429a8a6d13cb690ab9054fab8655b61b65a8ee60f36a69
-  languageName: node
-  linkType: hard
-
 "@lichtblick/tsconfig@npm:1.1.2":
   version: 1.1.2
   resolution: "@lichtblick/tsconfig@npm:1.1.2"
@@ -11618,7 +11611,7 @@ __metadata:
     "@lichtblick/log": "workspace:*"
     "@lichtblick/suite-base": "workspace:*"
     "@lichtblick/suite-web": "workspace:*"
-    "@lichtblick/tsconfig": "npm:1.0.2"
+    "@lichtblick/tsconfig": "npm:1.1.2"
     webpack: "npm:5.105.3"
     webpack-dev-server: "npm:5.2.3"
   languageName: unknown

@@ -6,10 +6,6 @@
 // gate, run in CI via `yarn extension:typecheck`.
 //
 // Modelled on packages/suite-base/tsconfig.json. Notable differences:
-//   - "moduleResolution": extension/package.json pins @lichtblick/tsconfig 1.0.2 (the rest of the
-//     repo is on 1.1.2), so "@lichtblick/tsconfig/base" resolves here to extension/node_modules,
-//     whose base still sets the deprecated "node"/node10 resolution -> TS5107 under TypeScript 6.0.
-//     Set "bundler" explicitly to match the rest of the repo. Remove once the pin is bumped.
 //   - "include" is scoped to ./src so that build output in extension/.webpack is not swept in.
 //   - packages/suite-base/src/typings supplies globals the extension relies on (e.g. ReactNull,
 //     which the webpack build injects via ProvidePlugin and jest injects via `globals`).
@@ -21,7 +17,6 @@
     "noEmit": true,
     "jsx": "react-jsx",
     "lib": ["dom", "dom.iterable", "es2022", "webworker", "ESNext.Disposable"],
-    "moduleResolution": "bundler",
     "types": ["jest", "node"],
     "declarationMap": false,
     "sourceMap": false,
