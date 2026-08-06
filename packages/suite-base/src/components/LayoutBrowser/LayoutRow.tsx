@@ -158,11 +158,19 @@ export default React.memo(function LayoutRow({
     [editingName, layout, nameFieldValue, onRename],
   );
 
-  const onTextFieldKeyDown = useCallback((event: React.KeyboardEvent) => {
-    if (event.key === "Escape") {
-      setEditingName(false);
-    }
-  }, []);
+  const onTextFieldKeyDown = useCallback(
+    (event: React.KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setEditingName(false);
+      } else if (event.key === "Enter") {
+        // Commit explicitly instead of relying on the form's implicit submission:
+        // the embedded webview runs in an iframe sandboxed without allow-forms,
+        // where Chromium blocks form submission and onSubmit never fires.
+        onSubmit(event);
+      }
+    },
+    [onSubmit],
+  );
 
   const onBlur = useCallback(
     (event: React.FocusEvent) => {

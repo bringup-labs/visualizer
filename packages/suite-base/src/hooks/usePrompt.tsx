@@ -137,8 +137,11 @@ function ModalPrompt({
           >
             Cancel
           </Button>
+          {/* Confirms via onClick rather than type="submit": the embedded webview
+              runs in an iframe sandboxed without allow-forms, where Chromium blocks
+              form submission outright and a submit button would do nothing. */}
           <Button
-            type="submit"
+            onClick={onConfirmAction}
             variant="contained"
             size="large"
             disabled={value === "" || errorMessage != undefined}

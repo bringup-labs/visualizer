@@ -214,6 +214,47 @@ describe("LayoutRow rendering", () => {
     });
   });
 
+  // The embedded webview's iframe is sandboxed without allow-forms, so the
+  // surrounding form never submits and Enter must commit on its own.
+  it("Given a layout, when Rename is clicked and Enter is pressed, then onRename is called with the new name", async () => {
+    const onRename = jest.fn();
+    renderComponent({ onRename });
+
+    fireEvent.click(screen.getByTestId("layout-actions"));
+    fireEvent.click(screen.getByTestId("rename-layout"));
+
+    const input = await waitFor(() =>
+      screen.getByTestId("layout-list-item").querySelector('input[type="text"]'),
+    );
+    const inputValue = BasicBuilder.string();
+    fireEvent.change(input!, { target: { value: inputValue } });
+
+    fireEvent.keyDown(input!, { key: "Enter" });
+
+    await waitFor(() => {
+      expect(onRename).toHaveBeenCalledWith(expect.objectContaining({ id: layoutId }), inputValue);
+    });
+  });
+
+  it("Given a layout being renamed, when Escape is pressed, then onRename is not called", async () => {
+    const onRename = jest.fn();
+    renderComponent({ onRename });
+
+    fireEvent.click(screen.getByTestId("layout-actions"));
+    fireEvent.click(screen.getByTestId("rename-layout"));
+
+    const input = await waitFor(() =>
+      screen.getByTestId("layout-list-item").querySelector('input[type="text"]'),
+    );
+    fireEvent.change(input!, { target: { value: BasicBuilder.string() } });
+
+    fireEvent.keyDown(input!, { key: "Escape" });
+
+    await waitFor(() => {
+      expect(onRename).not.toHaveBeenCalled();
+    });
+  });
+
   it("Given a shared layout, when Duplicate is clicked, then onMakePersonalCopy is called", () => {
     const onMakePersonalCopy = jest.fn();
     const sharedLayout = { ...defaultLayout, permission: "ORG_READ" as const };

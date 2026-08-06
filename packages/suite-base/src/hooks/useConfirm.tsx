@@ -78,11 +78,16 @@ function ConfirmModal(props: ConfirmModalProps) {
         {props.cancel ?? "Cancel"}
       </Button>
     ),
+    // Confirms via onClick rather than type="submit": the embedded webview runs
+    // in an iframe sandboxed without allow-forms, where Chromium blocks form
+    // submission outright and a submit button would do nothing.
     <Button
       key="confirm"
       variant="contained"
       color={props.variant === "danger" ? "error" : "primary"}
-      type="submit"
+      onClick={() => {
+        onComplete("ok");
+      }}
     >
       {props.ok ?? "OK"}
     </Button>,
