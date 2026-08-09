@@ -468,7 +468,12 @@ export default class LayoutManager implements ILayoutManager {
           permission: remoteLayout.permission,
           baseline: { data: remoteLayout.data, savedAt: remoteLayout.savedAt },
           working: undefined,
-          syncInfo: { status: "tracked", lastRemoteSavedAt: remoteLayout.savedAt },
+          // Keyed off the permission the server just returned, not the one the
+          // layout had locally: a personal layout must never carry syncInfo, or
+          // the sync reducer becomes free to delete it. Same rule as add-to-cache.
+          syncInfo: layoutPermissionIsShared(remoteLayout.permission)
+            ? { status: "tracked", lastRemoteSavedAt: remoteLayout.savedAt }
+            : undefined,
         }),
     );
 

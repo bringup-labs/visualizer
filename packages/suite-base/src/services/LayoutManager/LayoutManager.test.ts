@@ -1120,6 +1120,29 @@ describe("LayoutManager", () => {
       });
     });
 
+    it("should not attach syncInfo when the server reports the layout as personal", async () => {
+      // Given
+      const layout = sharedLayout();
+      const remoteLayout = LayoutBuilder.remoteLayout({
+        id: layout.id,
+        permission: "CREATOR_WRITE",
+      });
+      mockLocalStorage.list.mockResolvedValue([layout]);
+      mockRemoteStorage.getLayouts.mockResolvedValue([remoteLayout]);
+      const layoutManager = new LayoutManager({
+        local: mockLocalStorage,
+        remote: mockRemoteStorage,
+      });
+      layoutManager.setOnline({ online: true });
+
+      // When
+      const result = await layoutManager.refetchLayout({ id: layout.id });
+
+      // Then
+      expect(result.permission).toBe("CREATOR_WRITE");
+      expect(result.syncInfo).toBeUndefined();
+    });
+
     it("should report the change as a revert so the open layout is re-rendered", async () => {
       // Given
       const layout = sharedLayout();
