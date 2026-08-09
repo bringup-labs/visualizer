@@ -52,6 +52,7 @@ export default React.memo(function LayoutRow({
   onRevert,
   onMakePersonalCopy,
   onPublishToCatalog,
+  onRefetch,
 }: {
   layout: Layout;
   anySelectedModifiedLayouts: boolean;
@@ -69,6 +70,10 @@ export default React.memo(function LayoutRow({
   /** Promote a shared layout into the read-only organization catalog. Optional:
    *  only supplied where organization layout storage is available. */
   onPublishToCatalog?: (item: Layout) => void;
+  /** Replace a shared layout with the server's current version, discarding local
+   *  changes. Optional: only supplied where organization layout storage is
+   *  available. */
+  onRefetch?: (item: Layout) => void;
 }): React.JSX.Element {
   const isMounted = useMountedState();
   const [confirm, confirmModal] = useConfirm();
@@ -121,6 +126,27 @@ export default React.memo(function LayoutRow({
     }
     onRevert(layout);
   }, [confirm, layout, multiSelection, onRevert]);
+
+  const confirmRefetch = useCallback(async () => {
+    if (!onRefetch) {
+      return;
+    }
+    // Only worth a dialog when there is something to lose; an unmodified layout
+    // just reloads.
+    if (hasModifications) {
+      const response = await confirm({
+        title: `Refetch “${layout.name}” from the server?`,
+        prompt:
+          "Your unsaved changes to this layout will be permanently discarded. This cannot be undone.",
+        ok: "Refetch",
+        variant: "danger",
+      });
+      if (response !== "ok" || !isMounted()) {
+        return;
+      }
+    }
+    onRefetch(layout);
+  }, [confirm, hasModifications, isMounted, layout, onRefetch]);
 
   const renameAction = useCallback(() => {
     setNameFieldValue(layout.name);
@@ -264,6 +290,21 @@ export default React.memo(function LayoutRow({
           onPublishToCatalog(layout);
         },
         "data-testid": "publish-layout-to-catalog",
+        disabled: !isOnline || multiSelection,
+        secondaryText: !isOnline ? "Offline" : undefined,
+      },
+    // Deliberately not gated on isReadOnlyCatalogLayout: refetching is a read,
+    // so it stays available on catalog layouts the user cannot write to — which
+    // is where a stale local copy is most likely to strand them.
+    layoutIsShared(layout) &&
+      onRefetch != undefined && {
+        type: "item",
+        key: "refetch",
+        text: "Refetch from server",
+        onClick: () => {
+          void confirmRefetch();
+        },
+        "data-testid": "refetch-layout",
         disabled: !isOnline || multiSelection,
         secondaryText: !isOnline ? "Offline" : undefined,
       },

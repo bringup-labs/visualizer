@@ -297,4 +297,17 @@ describe("useLayoutActions", () => {
       expect(mockLayoutManager.overwriteLayout).not.toHaveBeenCalled();
     });
   });
+
+  describe("onRefetchLayout", () => {
+    it("refetches the layout from the server", async () => {
+      const { result } = setup();
+      const mockLayout = LayoutBuilder.layout({ permission: "ORG_WRITE" });
+
+      await act(async () => {
+        await result.current.onRefetchLayout(mockLayout);
+      });
+
+      expect(mockLayoutManager.refetchLayout).toHaveBeenCalledWith({ id: mockLayout.id });
+    });
+  });
 });

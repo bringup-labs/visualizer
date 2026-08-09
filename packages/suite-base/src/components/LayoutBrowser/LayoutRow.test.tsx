@@ -497,3 +497,126 @@ describe("LayoutRow publish to catalog", () => {
     expect(screen.getByTestId("publish-layout-to-catalog")).toBeDisabled();
   });
 });
+
+describe("LayoutRow refetch from server", () => {
+  // LayoutBuilder fills unset props with defaults, so `working` has to be
+  // cleared afterwards to get a layout with no unsaved changes.
+  const unmodifiedOrgLayout: Layout = {
+    ...LayoutBuilder.layout({ permission: "ORG_WRITE" }),
+    working: undefined,
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockLayoutManager.isOnline = true;
+    (LayoutManagerContext.useLayoutManager as jest.Mock).mockReturnValue(mockLayoutManager);
+    (useConfirmModule.useConfirm as jest.Mock).mockReturnValue([mockConfirm, mockConfirmModal]);
+  });
+
+  it("Given an unmodified org layout, when refetch is clicked, then it refetches without confirming", async () => {
+    const onRefetch = jest.fn();
+
+    renderComponent({ layout: unmodifiedOrgLayout, onRefetch });
+
+    fireEvent.click(screen.getByTestId("layout-actions"));
+    fireEvent.click(screen.getByTestId("refetch-layout"));
+
+    await waitFor(() => {
+      expect(onRefetch).toHaveBeenCalledWith(unmodifiedOrgLayout);
+    });
+    expect(mockConfirm).not.toHaveBeenCalled();
+  });
+
+  it("Given a read-only catalog layout, when menu is opened, then refetch is still offered", () => {
+    const catalogLayout = LayoutBuilder.layout({ permission: "ORG_READ" });
+
+    renderComponent(
+      { layout: catalogLayout, onRefetch: jest.fn() },
+      { orgLayoutCapabilities: { canPublishCatalog: false } },
+    );
+
+    fireEvent.click(screen.getByTestId("layout-actions"));
+
+    expect(screen.getByTestId("refetch-layout")).toBeInTheDocument();
+  });
+
+  it("Given a personal layout, when menu is opened, then refetch is hidden", () => {
+    const personalLayout = LayoutBuilder.layout({ permission: "CREATOR_WRITE" });
+
+    renderComponent({ layout: personalLayout, onRefetch: jest.fn() });
+
+    fireEvent.click(screen.getByTestId("layout-actions"));
+
+    expect(screen.queryByTestId("refetch-layout")).not.toBeInTheDocument();
+  });
+
+  it("Given no refetch handler, when menu is opened on an org layout, then refetch is hidden", () => {
+    renderComponent({ layout: unmodifiedOrgLayout });
+
+    fireEvent.click(screen.getByTestId("layout-actions"));
+
+    expect(screen.queryByTestId("refetch-layout")).not.toBeInTheDocument();
+  });
+
+  it("Given offline, when menu is opened on an org layout, then refetch is disabled", () => {
+    mockLayoutManager.isOnline = false;
+
+    renderComponent({ layout: unmodifiedOrgLayout, onRefetch: jest.fn() });
+
+    fireEvent.click(screen.getByTestId("layout-actions"));
+
+    expect(screen.getByTestId("refetch-layout")).toBeDisabled();
+  });
+
+  it("Given multi-selection, when menu is opened on an org layout, then refetch is disabled", () => {
+    renderComponent({
+      layout: unmodifiedOrgLayout,
+      onRefetch: jest.fn(),
+      multiSelectedIds: [BasicBuilder.string(), BasicBuilder.string()],
+    });
+
+    fireEvent.click(screen.getByTestId("layout-actions"));
+
+    expect(screen.getByTestId("refetch-layout")).toBeDisabled();
+  });
+
+  it("Given unsaved changes and a confirmed dialog, when refetch is clicked, then it refetches", async () => {
+    const modifiedOrgLayout = LayoutBuilder.layout({
+      permission: "ORG_WRITE",
+      working: LayoutBuilder.baseline(),
+    });
+    const onRefetch = jest.fn();
+    mockConfirm.mockResolvedValue("ok");
+
+    renderComponent({ layout: modifiedOrgLayout, onRefetch });
+
+    fireEvent.click(screen.getByTestId("layout-actions"));
+    fireEvent.click(screen.getByTestId("refetch-layout"));
+
+    await waitFor(() => {
+      expect(onRefetch).toHaveBeenCalledWith(modifiedOrgLayout);
+    });
+    expect(mockConfirm).toHaveBeenCalledWith(
+      expect.objectContaining({ variant: "danger", ok: "Refetch" }),
+    );
+  });
+
+  it("Given unsaved changes and a dismissed dialog, when refetch is clicked, then nothing is refetched", async () => {
+    const modifiedOrgLayout = LayoutBuilder.layout({
+      permission: "ORG_WRITE",
+      working: LayoutBuilder.baseline(),
+    });
+    const onRefetch = jest.fn();
+    mockConfirm.mockResolvedValue("cancel");
+
+    renderComponent({ layout: modifiedOrgLayout, onRefetch });
+
+    fireEvent.click(screen.getByTestId("layout-actions"));
+    fireEvent.click(screen.getByTestId("refetch-layout"));
+
+    await waitFor(() => {
+      expect(mockConfirm).toHaveBeenCalled();
+    });
+    expect(onRefetch).not.toHaveBeenCalled();
+  });
+});

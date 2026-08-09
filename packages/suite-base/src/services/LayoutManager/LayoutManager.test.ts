@@ -5,6 +5,7 @@ import { LayoutID } from "@lichtblick/suite-base/context/CurrentLayoutContext";
 import {
   ILayoutStorage,
   ISO8601Timestamp,
+  Layout,
   LayoutPermission,
 } from "@lichtblick/suite-base/services/ILayoutStorage";
 import { IRemoteLayoutStorage } from "@lichtblick/suite-base/services/IRemoteLayoutStorage";
@@ -1001,6 +1002,172 @@ describe("LayoutManager", () => {
       expect(result.syncInfo?.status).toBe("new");
       expect(result.syncInfo?.lastRemoteSavedAt).toBeDefined();
       expect(jest.spyOn(mockLocalStorage, "put")).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe("refetchLayout", () => {
+    const sharedLayout = (props: Partial<Layout> = {}) =>
+      LayoutBuilder.layout({
+        permission: "ORG_WRITE",
+        syncInfo: LayoutBuilder.syncInfo({ status: "tracked" }),
+        ...props,
+      });
+
+    it("should throw when no remote storage is configured", async () => {
+      // Given
+      const layoutManager = new LayoutManager({ local: mockLocalStorage, remote: undefined });
+      layoutManager.setOnline({ online: true });
+
+      // When & Then
+      await expect(layoutManager.refetchLayout({ id: LayoutBuilder.layoutId() })).rejects.toThrow(
+        "Refetching is not supported without remote layout storage",
+      );
+    });
+
+    it("should throw when offline", async () => {
+      // Given
+      const layoutManager = new LayoutManager({
+        local: mockLocalStorage,
+        remote: mockRemoteStorage,
+      });
+
+      // When & Then
+      await expect(layoutManager.refetchLayout({ id: LayoutBuilder.layoutId() })).rejects.toThrow(
+        "Cannot refetch a layout while offline",
+      );
+      expect(mockRemoteStorage.getLayouts).not.toHaveBeenCalled();
+    });
+
+    it("should throw when the layout does not exist locally", async () => {
+      // Given
+      const layoutManager = new LayoutManager({
+        local: mockLocalStorage,
+        remote: mockRemoteStorage,
+      });
+      layoutManager.setOnline({ online: true });
+      const layoutId = LayoutBuilder.layoutId();
+
+      // When & Then
+      await expect(layoutManager.refetchLayout({ id: layoutId })).rejects.toThrow(
+        `Cannot refetch layout id ${layoutId} because it does not exist`,
+      );
+    });
+
+    it("should throw for a personal layout, which has no server copy", async () => {
+      // Given
+      const layout = sharedLayout({ permission: "CREATOR_WRITE" });
+      mockLocalStorage.list.mockResolvedValue([layout]);
+      const layoutManager = new LayoutManager({
+        local: mockLocalStorage,
+        remote: mockRemoteStorage,
+      });
+      layoutManager.setOnline({ online: true });
+
+      // When & Then
+      await expect(layoutManager.refetchLayout({ id: layout.id })).rejects.toThrow(
+        "Only organization layouts can be refetched",
+      );
+      expect(mockRemoteStorage.getLayouts).not.toHaveBeenCalled();
+    });
+
+    it("should throw when the layout is gone from the server", async () => {
+      // Given
+      const layout = sharedLayout();
+      mockLocalStorage.list.mockResolvedValue([layout]);
+      mockRemoteStorage.getLayouts.mockResolvedValue([LayoutBuilder.remoteLayout()]);
+      const layoutManager = new LayoutManager({
+        local: mockLocalStorage,
+        remote: mockRemoteStorage,
+      });
+      layoutManager.setOnline({ online: true });
+
+      // When & Then
+      await expect(layoutManager.refetchLayout({ id: layout.id })).rejects.toThrow(
+        `“${layout.name}” no longer exists on the server`,
+      );
+      expect(jest.spyOn(mockLocalStorage, "put")).not.toHaveBeenCalled();
+    });
+
+    it("should replace the baseline with the remote copy and discard local changes", async () => {
+      // Given
+      const layout = sharedLayout();
+      const remoteLayout = LayoutBuilder.remoteLayout({
+        id: layout.id,
+        permission: "ORG_WRITE",
+      });
+      mockLocalStorage.list.mockResolvedValue([layout]);
+      mockRemoteStorage.getLayouts.mockResolvedValue([remoteLayout]);
+      const layoutManager = new LayoutManager({
+        local: mockLocalStorage,
+        remote: mockRemoteStorage,
+      });
+      layoutManager.setOnline({ online: true });
+
+      // When
+      const result = await layoutManager.refetchLayout({ id: layout.id });
+
+      // Then
+      expect(result.working).toBeUndefined();
+      expect(result.name).toBe(remoteLayout.name);
+      expect(result.externalId).toBe(remoteLayout.externalId);
+      expect(result.baseline).toEqual({
+        data: remoteLayout.data,
+        savedAt: remoteLayout.savedAt,
+      });
+      expect(result.syncInfo).toEqual({
+        status: "tracked",
+        lastRemoteSavedAt: remoteLayout.savedAt,
+      });
+    });
+
+    it("should not attach syncInfo when the server reports the layout as personal", async () => {
+      // Given
+      const layout = sharedLayout();
+      const remoteLayout = LayoutBuilder.remoteLayout({
+        id: layout.id,
+        permission: "CREATOR_WRITE",
+      });
+      mockLocalStorage.list.mockResolvedValue([layout]);
+      mockRemoteStorage.getLayouts.mockResolvedValue([remoteLayout]);
+      const layoutManager = new LayoutManager({
+        local: mockLocalStorage,
+        remote: mockRemoteStorage,
+      });
+      layoutManager.setOnline({ online: true });
+
+      // When
+      const result = await layoutManager.refetchLayout({ id: layout.id });
+
+      // Then
+      expect(result.permission).toBe("CREATOR_WRITE");
+      expect(result.syncInfo).toBeUndefined();
+    });
+
+    it("should report the change as a revert so the open layout is re-rendered", async () => {
+      // Given
+      const layout = sharedLayout();
+      const remoteLayout = LayoutBuilder.remoteLayout({ id: layout.id, permission: "ORG_READ" });
+      mockLocalStorage.list.mockResolvedValue([layout]);
+      mockRemoteStorage.getLayouts.mockResolvedValue([remoteLayout]);
+      const layoutManager = new LayoutManager({
+        local: mockLocalStorage,
+        remote: mockRemoteStorage,
+      });
+      layoutManager.setOnline({ online: true });
+      const changeListener = jest.fn();
+      layoutManager.on("change", changeListener);
+
+      // When
+      await layoutManager.refetchLayout({ id: layout.id });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      // Then
+      expect(changeListener).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: "revert",
+          updatedLayout: expect.objectContaining({ id: layout.id, working: undefined }),
+        }),
+      );
     });
   });
 
