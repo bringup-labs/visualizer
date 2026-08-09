@@ -425,6 +425,60 @@ export default class LayoutManager implements ILayoutManager {
     return result;
   }
 
+  /**
+   * Replace a shared layout's cached copy with the server's current version,
+   * discarding any local working changes.
+   *
+   * `syncWithRemote` also refreshes baselines, but it preserves `working` and
+   * runs on its own schedule, so once the user has touched a layout their stale
+   * working copy shadows the server version indefinitely. This is the explicit
+   * "give me what the server has" path.
+   */
+  @emitBusyStatus
+  public async refetchLayout({ id }: { id: LayoutID }): Promise<Layout> {
+    if (!this.remote) {
+      throw new Error("Refetching is not supported without remote layout storage");
+    }
+    if (!this.isOnline) {
+      throw new Error("Cannot refetch a layout while offline");
+    }
+
+    const localLayout = await this.local.runExclusive(async (local) => await local.get(id));
+    if (!localLayout) {
+      throw new Error(`Cannot refetch layout id ${id} because it does not exist`);
+    }
+    if (!layoutIsShared(localLayout)) {
+      throw new Error("Only organization layouts can be refetched");
+    }
+
+    // The list endpoint rather than getLayout: only some IRemoteLayoutStorage
+    // implementations support fetching a single layout by id.
+    const remoteLayouts = await this.remote.getLayouts();
+    const remoteLayout = remoteLayouts.find((candidate) => candidate.id === id);
+    if (!remoteLayout) {
+      throw new Error(`“${localLayout.name}” no longer exists on the server`);
+    }
+
+    const result = await this.local.runExclusive(
+      async (local) =>
+        await local.put({
+          id: remoteLayout.id,
+          externalId: remoteLayout.externalId,
+          name: remoteLayout.name,
+          permission: remoteLayout.permission,
+          baseline: { data: remoteLayout.data, savedAt: remoteLayout.savedAt },
+          working: undefined,
+          syncInfo: { status: "tracked", lastRemoteSavedAt: remoteLayout.savedAt },
+        }),
+    );
+
+    // Reported as "revert", not "change": CurrentLayoutProvider re-applies the
+    // selected layout only for revert events, and a refetch that leaves the
+    // viewport rendering the old layout would look like it did nothing.
+    this.notifyChangeListeners({ type: "revert", updatedLayout: result });
+    return result;
+  }
+
   @emitBusyStatus
   public async makePersonalCopy({ id, name }: { id: LayoutID; name: string }): Promise<Layout> {
     const now = new Date().toISOString() as ISO8601Timestamp;

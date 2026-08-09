@@ -99,6 +99,18 @@ export interface ILayoutManager {
   /** Revert this layout to the baseline. */
   revertLayout(params: { id: LayoutID }): Promise<Layout>;
 
+  /**
+   * Replace a shared layout's cached copy with the server's current version,
+   * discarding any local working changes.
+   */
+  refetchLayout(params: { id: LayoutID }): Promise<Layout>;
+
   /** Transfer a shared layout's working changes into a new personal layout. */
   makePersonalCopy(params: { id: LayoutID; name: string }): Promise<Layout>;
+
+  /**
+   * Reconcile the local cache with remote storage. Runs periodically on its own;
+   * exposed here so the user can also ask for it on demand.
+   */
+  syncWithRemote(abortSignal: AbortSignal): Promise<void>;
 }

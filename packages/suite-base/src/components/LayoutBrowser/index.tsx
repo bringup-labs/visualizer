@@ -8,6 +8,7 @@
 import AddIcon from "@mui/icons-material/Add";
 import CloudOffIcon from "@mui/icons-material/CloudOff";
 import FileOpenOutlinedIcon from "@mui/icons-material/FileOpenOutlined";
+import RefreshIcon from "@mui/icons-material/Refresh";
 import {
   CircularProgress,
   Divider,
@@ -86,6 +87,7 @@ export default function LayoutBrowser({
     onDeleteLayout,
     onRevertLayout,
     onOverwriteLayout,
+    onRefetchLayout,
     confirmModal,
   } = useLayoutActions({ state, dispatch });
   const { importLayout, exportLayout } = useLayoutTransfer();
@@ -306,6 +308,13 @@ export default function LayoutBrowser({
     [remoteLayoutStorage, enqueueSnackbar],
   );
 
+  // The periodic sync loop can be up to a few minutes away from its next run, so
+  // this is the "pull whatever the org has right now" button. Non-destructive by
+  // design: unlike a row's refetch it never discards anyone's working copy.
+  const refreshLayouts = useCallbackWithToast(async () => {
+    await layoutManager.syncWithRemote(new AbortController().signal);
+  }, [layoutManager]);
+
   const showSignInPrompt =
     signIn != undefined && !layoutManager.supportsSharing && !hideSignInPrompt;
 
@@ -352,6 +361,19 @@ export default function LayoutBrowser({
         >
           <FileOpenOutlinedIcon />
         </IconButton>,
+        layoutManager.supportsSharing && (
+          <IconButton
+            color="primary"
+            key="refresh-layouts"
+            onClick={refreshLayouts}
+            disabled={!state.online || state.busy}
+            aria-label="Refresh layouts"
+            data-testid="refresh-layouts"
+            title="Refresh layouts from the server"
+          >
+            <RefreshIcon />
+          </IconButton>
+        ),
       ].filter(Boolean)}
     >
       {promptModal}
@@ -402,6 +424,7 @@ export default function LayoutBrowser({
           onRevert={onRevertLayout}
           onMakePersonalCopy={onMakePersonalCopy}
           onPublishToCatalog={onPublishToCatalog}
+          onRefetch={onRefetchLayout}
         />
         {layoutManager.supportsSharing && (
           <LayoutSection
@@ -424,6 +447,7 @@ export default function LayoutBrowser({
             onRevert={onRevertLayout}
             onMakePersonalCopy={onMakePersonalCopy}
             onPublishToCatalog={onPublishToCatalog}
+            onRefetch={onRefetchLayout}
           />
         )}
         {!enableNewTopNav && <Stack flexGrow={1} />}

@@ -35,6 +35,7 @@ export default function LayoutSection({
   onRevert,
   onMakePersonalCopy,
   onPublishToCatalog,
+  onRefetch,
 }: Readonly<{
   title: string | undefined;
   disablePadding?: boolean;
@@ -55,6 +56,7 @@ export default function LayoutSection({
   onRevert: (item: Layout) => void;
   onMakePersonalCopy: (item: Layout) => void;
   onPublishToCatalog?: (item: Layout) => void;
+  onRefetch?: (item: Layout) => void;
 }>): React.JSX.Element {
   const { classes, cx } = useLayoutSectionStyles();
 
@@ -103,6 +105,7 @@ export default function LayoutSection({
               onRevert={onRevert}
               onMakePersonalCopy={onMakePersonalCopy}
               onPublishToCatalog={onPublishToCatalog}
+              onRefetch={onRefetch}
             />
           ))}
         </List>

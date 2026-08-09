@@ -24,6 +24,7 @@ export default class MockLayoutManager implements ILayoutManager {
   public deleteLayout = jest.fn();
   public overwriteLayout = jest.fn();
   public revertLayout = jest.fn();
+  public refetchLayout = jest.fn();
   public makePersonalCopy = jest.fn();
   public syncWithRemote = jest.fn();
 }

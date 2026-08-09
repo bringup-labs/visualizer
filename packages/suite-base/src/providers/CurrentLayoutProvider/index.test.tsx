@@ -76,7 +76,9 @@ function makeMockLayoutManager() {
     deleteLayout: jest.fn().mockImplementation(mockThrow("deleteLayout")),
     overwriteLayout: jest.fn().mockImplementation(mockThrow("overwriteLayout")),
     revertLayout: jest.fn().mockImplementation(mockThrow("revertLayout")),
+    refetchLayout: jest.fn().mockImplementation(mockThrow("refetchLayout")),
     makePersonalCopy: jest.fn().mockImplementation(mockThrow("makePersonalCopy")),
+    syncWithRemote: jest.fn().mockImplementation(mockThrow("syncWithRemote")),
   };
 }
 function makeMockUserProfile() {

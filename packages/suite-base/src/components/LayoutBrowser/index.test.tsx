@@ -3,7 +3,7 @@
 // SPDX-FileCopyrightText: Copyright (C) 2023-2026 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)<lichtblick@bmwgroup.com>
 // SPDX-License-Identifier: MPL-2.0
 
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
 
 import { LayoutSelectionState } from "@lichtblick/suite-base/components/LayoutBrowser/types";
@@ -100,6 +100,7 @@ jest.mock("@lichtblick/suite-base/hooks/useLayoutActions", () => ({
     onDeleteLayout: jest.fn(),
     onRevertLayout: jest.fn(),
     onOverwriteLayout: jest.fn(),
+    onRefetchLayout: jest.fn(),
     confirmModal: undefined,
   }),
 }));
@@ -110,9 +111,18 @@ jest.mock("./LayoutSection", () => ({
 }));
 
 jest.mock("@lichtblick/suite-base/components/SidebarContent", () => ({
-  SidebarContent: ({ children, title }: { children: React.ReactNode; title: string }) => (
+  SidebarContent: ({
+    children,
+    title,
+    trailingItems,
+  }: {
+    children: React.ReactNode;
+    title: string;
+    trailingItems?: React.ReactNode[];
+  }) => (
     <div data-testid="sidebar-content">
       <span>{title}</span>
+      {trailingItems}
       {children}
     </div>
   ),
@@ -548,6 +558,52 @@ describe("LayoutBrowser", () => {
 
       // WHEN / THEN
       await expect(capturePublishHandler()(layout)).rejects.toThrow(/organization layout storage/i);
+    });
+  });
+
+  describe("refresh button", () => {
+    afterEach(() => {
+      mockLayoutManager.supportsSharing = false;
+    });
+
+    it("is hidden without organization layout storage", () => {
+      mockLayoutManager.supportsSharing = false;
+
+      render(<LayoutBrowser />);
+
+      expect(screen.queryByTestId("refresh-layouts")).not.toBeInTheDocument();
+    });
+
+    it("syncs with the server when clicked", async () => {
+      mockLayoutManager.supportsSharing = true;
+      mockLayoutManager.syncWithRemote = jest.fn().mockResolvedValue(undefined);
+
+      render(<LayoutBrowser />);
+      fireEvent.click(screen.getByTestId("refresh-layouts"));
+
+      await waitFor(() => {
+        expect(mockLayoutManager.syncWithRemote).toHaveBeenCalledTimes(1);
+      });
+    });
+
+    it("is disabled while offline", () => {
+      mockLayoutManager.supportsSharing = true;
+      (useLayoutNavigation as jest.Mock).mockReturnValue({
+        onSelectLayout: jest.fn(),
+        state: {
+          busy: false,
+          error: undefined,
+          online: false,
+          lastSelectedId: undefined,
+          multiAction: undefined,
+          selectedIds: [],
+        },
+        dispatch: dispatchMock,
+      });
+
+      render(<LayoutBrowser />);
+
+      expect(screen.getByTestId("refresh-layouts")).toBeDisabled();
     });
   });
 });

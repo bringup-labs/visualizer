@@ -21,6 +21,7 @@ type UseLayoutActions = {
   onDeleteLayout: (item: Layout) => Promise<void>;
   onRevertLayout: (item: Layout) => Promise<void>;
   onOverwriteLayout: (item: Layout) => Promise<void>;
+  onRefetchLayout: (item: Layout) => Promise<void>;
   confirmModal: React.JSX.Element | undefined;
 };
 
@@ -135,12 +136,22 @@ export function useLayoutActions({ state, dispatch }: LayoutSetupOptions): UseLa
     [analytics, dispatch, layoutManager, state.selectedIds.length],
   );
 
+  // Discarding local changes is confirmed by the caller, alongside the other
+  // destructive row actions.
+  const onRefetchLayout = useCallbackWithToast(
+    async (item: Layout) => {
+      await layoutManager.refetchLayout({ id: item.id });
+    },
+    [layoutManager],
+  );
+
   return {
     onRenameLayout,
     onDuplicateLayout,
     onDeleteLayout,
     onRevertLayout,
     onOverwriteLayout,
+    onRefetchLayout,
     confirmModal,
   };
 }
