@@ -4,6 +4,7 @@
 import { useEffect } from "react";
 
 import { BridgeClient } from "./bridge/BridgeClient";
+import { VIS_BRIDGE } from "./bridge/types";
 import { OPEN_FILE_CHUNK_EVENT, OpenFileChunkAssembler, injectFileIntoApp } from "./openFileChunks";
 
 const INJECT_RETRY_INTERVAL_MS = 250;
@@ -16,7 +17,7 @@ const INJECT_RETRY_LIMIT = 40;
  * onDrop flow a drag-and-drop would take. Renders nothing.
  */
 export function OpenFileListener(props: {
-  bridge: Pick<BridgeClient, "onEvent">;
+  bridge: Pick<BridgeClient, "onEvent" | "request">;
 }): React.JSX.Element | undefined {
   const { bridge } = props;
 
@@ -45,6 +46,16 @@ export function OpenFileListener(props: {
       if (file) {
         inject(file, INJECT_RETRY_LIMIT);
       }
+    });
+
+    // Ask only once subscribed. This component renders well after the panel is
+    // created — ExtensionRoot gates it behind two bridge round-trips — and a
+    // chunk that arrives with no subscriber is dropped, which strands the
+    // assembler one chunk short forever and opens nothing. So the host holds
+    // the file until this call rather than streaming on panel creation.
+    bridge.request(VIS_BRIDGE.openFilePending, {}).catch((err: unknown) => {
+      // An older host does not know the method, and has nothing waiting either.
+      console.debug("[open-file] host has no pending-file handshake", err);
     });
 
     return () => {

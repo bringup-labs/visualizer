@@ -34,4 +34,6 @@ export const VIS_BRIDGE = {
   pluginsInstall: "plugins.install",
   pluginsUninstall: "plugins.uninstall",
   themeGet: "theme.get",
+  /** Webview → host: "my open-file listener is subscribed; send what is waiting." */
+  openFilePending: "openFile.pending",
 } as const;
