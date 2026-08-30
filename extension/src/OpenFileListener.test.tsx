@@ -8,30 +8,46 @@ import { createRoot, Root } from "react-dom/client";
 
 import { OpenFileListener } from "./OpenFileListener";
 import { BridgeClient } from "./bridge/BridgeClient";
+import { VIS_BRIDGE } from "./bridge/types";
 import { OPEN_FILE_CHUNK_EVENT } from "./openFileChunks";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 type EventCallback = (payload: unknown) => void;
 
-function makeFakeBridge(): {
-  bridge: Pick<BridgeClient, "onEvent">;
+function makeFakeBridge(
+  { requestImpl }: { requestImpl?: jest.Mock } = {},
+): {
+  bridge: Pick<BridgeClient, "onEvent" | "request">;
   emit: (event: string, payload: unknown) => void;
   unsubscribe: jest.Mock;
+  request: jest.Mock;
+  /** Events the host had already pushed when `request` was called. */
+  subscribedAtRequest: () => boolean;
 } {
   const listeners = new Map<string, EventCallback>();
   const unsubscribe = jest.fn();
+  let subscribedWhenAsked = false;
+  const request =
+    requestImpl ??
+    jest.fn(async () => {
+      subscribedWhenAsked = listeners.has(OPEN_FILE_CHUNK_EVENT);
+      return {};
+    });
   return {
     bridge: {
       onEvent: (event: string, cb: EventCallback) => {
         listeners.set(event, cb);
         return unsubscribe;
       },
+      request: request as unknown as BridgeClient["request"],
     },
     emit: (event: string, payload: unknown) => {
       listeners.get(event)?.(payload);
     },
     unsubscribe,
+    request,
+    subscribedAtRequest: () => subscribedWhenAsked,
   };
 }
 
@@ -118,6 +134,41 @@ describe("<OpenFileListener>", () => {
     expect(file?.name).toBe("a.mcap");
     expect(file?.size).toBe(9);
     expect(await readFileText(file)).toBe("foobarbaz");
+  });
+
+  it("asks the host for a pending file only after subscribing to chunks", () => {
+    // Order is the whole point: the host drops chunks that arrive with no
+    // subscriber, so asking before onEvent would reintroduce the race this
+    // handshake exists to remove.
+    const { bridge, request, subscribedAtRequest } = makeFakeBridge();
+    act(() => {
+      root.render(createElement(OpenFileListener, { bridge }));
+    });
+
+    expect(request).toHaveBeenCalledTimes(1);
+    expect(request).toHaveBeenCalledWith(VIS_BRIDGE.openFilePending, {});
+    expect(subscribedAtRequest()).toBe(true);
+  });
+
+  it("keeps listening when the host does not know the handshake", async () => {
+    // An older host rejects the unknown method; the listener must still be
+    // usable, since a drag-and-drop open does not depend on the handshake.
+    const rejecting = jest.fn(async () => {
+      throw new Error("unknown method: openFile.pending");
+    });
+    const { bridge, emit } = makeFakeBridge({ requestImpl: rejecting });
+    act(() => {
+      root.render(createElement(OpenFileListener, { bridge }));
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(() => {
+      act(() => {
+        emit(OPEN_FILE_CHUNK_EVENT, fileChunk("a.mcap", 0, 1, "foo"));
+      });
+    }).not.toThrow();
   });
 
   it("unsubscribes from the bridge on unmount", () => {
