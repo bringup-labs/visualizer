@@ -241,6 +241,11 @@ export function createMockTransport(): BridgeTransport {
         return { type: "response", id, ok: true, data: false };
       case VIS_BRIDGE.themeGet:
         return { type: "response", id, ok: true, data: { kind: "dark" } };
+      case VIS_BRIDGE.openFilePending:
+        // Browser dev mode has no host process and so never has a file waiting.
+        // Answering successfully says exactly that - a rejection here would look
+        // like a broken handshake rather than an empty one.
+        return { type: "response", id, ok: true, data: {} };
       default:
         return { type: "response", id, ok: false, error: `Unknown bridge method: ${method}` };
     }

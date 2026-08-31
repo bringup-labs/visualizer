@@ -15,32 +15,36 @@ import { OPEN_FILE_CHUNK_EVENT } from "./openFileChunks";
 
 type EventCallback = (payload: unknown) => void;
 
-function makeFakeBridge(
-  { requestImpl }: { requestImpl?: jest.Mock } = {},
-): {
+function makeFakeBridge({ requestImpl }: { requestImpl?: jest.Mock } = {}): {
   bridge: Pick<BridgeClient, "onEvent" | "request">;
   emit: (event: string, payload: unknown) => void;
   unsubscribe: jest.Mock;
   request: jest.Mock;
-  /** Events the host had already pushed when `request` was called. */
+  /** Whether the chunk listener was already subscribed when `request` ran. */
   subscribedAtRequest: () => boolean;
 } {
   const listeners = new Map<string, EventCallback>();
   const unsubscribe = jest.fn();
   let subscribedWhenAsked = false;
-  const request =
-    requestImpl ??
-    jest.fn(async () => {
-      subscribedWhenAsked = listeners.has(OPEN_FILE_CHUNK_EVENT);
-      return {};
-    });
+  // The ordering is recorded around every implementation, custom ones included:
+  // reading it off the default mock alone would silently report "not subscribed"
+  // for any test that supplies its own `requestImpl`.
+  const request = jest.fn(async (...args: unknown[]) => {
+    subscribedWhenAsked = listeners.has(OPEN_FILE_CHUNK_EVENT);
+    return await (requestImpl?.(...args) ?? {});
+  });
   return {
     bridge: {
       onEvent: (event: string, cb: EventCallback) => {
         listeners.set(event, cb);
-        return unsubscribe;
+        return () => {
+          // Actually detach, so a listener that outlives unmount is observable
+          // through `emit` rather than only through the call count below.
+          listeners.delete(event);
+          unsubscribe();
+        };
       },
-      request: request as unknown as BridgeClient["request"],
+      request,
     },
     emit: (event: string, payload: unknown) => {
       listeners.get(event)?.(payload);

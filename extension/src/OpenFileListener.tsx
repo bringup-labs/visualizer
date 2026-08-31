@@ -54,8 +54,16 @@ export function OpenFileListener(props: {
     // assembler one chunk short forever and opens nothing. So the host holds
     // the file until this call rather than streaming on panel creation.
     bridge.request(VIS_BRIDGE.openFilePending, {}).catch((err: unknown) => {
-      // An older host does not know the method, and has nothing waiting either.
-      console.debug("[open-file] host has no pending-file handshake", err);
+      // An older host does not know the method and has nothing waiting either, so
+      // this is harmless there. A timeout or a transport failure lands here too,
+      // and that means a file the user asked to open never arrives - the exact
+      // silence this handshake exists to end - so warn rather than bury it at
+      // debug behind a cause we have not actually checked.
+      console.warn(
+        "[open-file] pending-file handshake failed - a file opened from the host will not appear " +
+          "(harmless on an older host, which has nothing waiting)",
+        err,
+      );
     });
 
     return () => {
